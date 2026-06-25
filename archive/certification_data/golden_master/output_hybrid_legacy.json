@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": {
+    "hybrid_context": [
+      {
+        "segment_type": "code",
+        "status": "ok",
+        "recipe_used": "code_structure",
+        "content": {
+          "classes": [],
+          "functions": [
+            "def main():"
+          ],
+          "imports": [
+            "import os"
+          ]
+        }
+      },
+      {
+        "segment_type": "documentation",
+        "status": "ok",
+        "recipe_used": "documentation",
+        "content": {
+          "headers": [
+            "# Hybrid Pipeline Test"
+          ],
+          "summary": "Document length: 2 lines.",
+          "keywords": [
+            "Hybrid",
+            "Pipeline"
+          ],
+          "links": []
+        }
+      }
+    ],
+    "platform_status": "stable",
+    "execution_log": []
+  },
+  "metrics": {
+    "raw_bytes": 186,
+    "recipe_bytes": 199,
+    "savings_ratio": "-6.99%",
+    "segments_total": 2,
+    "segments_ok": 2
+  }
+}

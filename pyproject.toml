@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bbc-aos"
+version = "1.0.0"
+description = "Best-practice Blast-radius Codebase Agentic Orchestration System"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "click>=8.1.0",
+    "pydantic>=2.0.0",
+    "psutil>=5.9.0",
+    "watchdog>=3.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0"
+]
+
+[project.scripts]
+bbc = "bbc_aos.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_classes = ["Test*Production", "Test*Subsystem", "Test*System", "Test*Pipeline"]
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+strict = true
+mypy_path = "src"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "bbc_aos.core.*",
+    "bbc_aos.agents.*",
+    "bbc_aos.loops.*",
+    "bbc_aos.memory.*",
+    "bbc_aos.knowledge.*",
+    "bbc_aos.approval.*",
+    "bbc_aos.commit.*",
+    "bbc_aos.integration.*"
+]
+ignore_errors = true

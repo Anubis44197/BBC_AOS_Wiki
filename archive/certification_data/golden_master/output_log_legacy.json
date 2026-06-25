@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "data": {
+    "counts": {
+      "INFO": 1,
+      "ERROR": 1,
+      "WARNING": 1,
+      "DEBUG": 1
+    },
+    "patterns": [],
+    "anomalies": [
+      "2026-06-24 12:00:03 CRITICAL EXCEPTION: connection timeout."
+    ],
+    "severity_summary": "Total 5 lines. Errors: 1, Warnings: 1"
+  },
+  "metrics": {
+    "raw_bytes": 272,
+    "recipe_bytes": 216,
+    "savings_ratio": "20.59%"
+  }
+}

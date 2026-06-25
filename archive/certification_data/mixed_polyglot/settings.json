@@ -1,0 +1,10 @@
+{
+    "env": "production",
+    "debug": false,
+    "token_limit": 8192,
+    "allowed_hosts": [
+        "localhost",
+        "127.0.0.1",
+        "aos.bbc.local"
+    ]
+}

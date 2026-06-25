@@ -1,0 +1,170 @@
+{
+  "project_name": "BBC-AOS",
+  "version": "1.0",
+  "component_mappings": {
+    "bbc_core/bbc_scalar.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Implements the BBCScalar class, state multiplication tables, and OmegaOperator self-heal protocols."
+    },
+    "bbc_core/matrix_ops.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Calculates matrix operations, Gauss-Jordan inversion, pseudo-inverse, and condition numbers."
+    },
+    "bbc_core/hmpu_core.py": {
+      "classification": "Core Deterministic Component",
+      "description": "HMPU Governor central mathematical governor implementing dC/dt, grad A, P_t+1, and F_perp."
+    },
+    "bbc_core/hmpu_engine.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Coordinates the recipe execution pipeline and dynamic constraint updates based on Aura metrics."
+    },
+    "bbc_core/verifier.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Enforces code syntax checking across 11+ programming languages and validates workspace symbol boundaries."
+    },
+    "bbc_core/symbol_extractor.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Extracts classes, functions, and imports from codebase abstract syntax trees."
+    },
+    "bbc_core/symbol_graph.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Parses and maintains the dependency graph of all symbols in the workspace."
+    },
+    "bbc_core/change_tracker.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Analyzes git-style diffs and tracks structural edits in code files."
+    },
+    "bbc_core/impact_analyzer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Calculates the impact factor of changes and predicts perturbation vectors."
+    },
+    "bbc_core/context_optimizer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Applies compression targets and rules to minimize token payloads."
+    },
+    "bbc_core/context_compiler.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Compiles raw context chunks into structured schemas for AI digestion."
+    },
+    "bbc_core/semantic_packer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Packs files and text segments based on semantic similarity ratings."
+    },
+    "bbc_core/hmpu_indexer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Handles local indexing for prompt-response and embedding mapping."
+    },
+    "bbc_core/hmpu_quantizer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Quantizes embeddings into low-bit space for efficient local storage."
+    },
+    "bbc_core/realtime_token_counter.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Live token counter using tiktoken library."
+    },
+    "bbc_core/scan_profile.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Iterates files dynamically based on inclusion/exclusion lists."
+    },
+    "bbc_core/project_hygiene.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Performs checks for unused imports, styling, and coding hygiene."
+    },
+    "bbc_core/attribution_tracer.py": {
+      "classification": "Core Deterministic Component",
+      "description": "Traces file modifications back to their originators (git authors or agents)."
+    },
+    "bbc_core/adaptive_mode.py": {
+      "classification": "Agent Candidate Component",
+      "description": "Enforces Strict/Relaxed mode bounds and scans inputs for speculative language."
+    },
+    "bbc_core/hallucination_guard.py": {
+      "classification": "Agent Candidate Component",
+      "description": "Performs post-generation symbol checking and identifies hallucinated code calls."
+    },
+    "bbc_core/auto_patcher.py": {
+      "classification": "Agent Candidate Component",
+      "description": "Constructs and applies auto-correcting code patches based on CVP feedback."
+    },
+    "bbc_core/auto_detector.py": {
+      "classification": "Agent Candidate Component",
+      "description": "Monitors terminal activity and automatically adapt projects."
+    },
+    "bbc_core/ai_integration.py": {
+      "classification": "Agent Candidate Component",
+      "description": "Intercepts AI requests, starts counters, and updates context JSON."
+    },
+    "bbc_core/agent_adapter.py": {
+      "classification": "Adapter Component",
+      "description": "Transforms context snapshots into markdown, YAML, or XML formats for specific IDE tools."
+    },
+    "bbc_core/adapter.py": {
+      "classification": "Adapter Component",
+      "description": "Central interface adapters for system inputs."
+    },
+    "bbc_core/native_adapter.py": {
+      "classification": "Adapter Component",
+      "description": "Bridges Python subprocess executions to OS filesystem and terminal operations."
+    },
+    "bbc_core/ide_hooks.py": {
+      "classification": "Adapter Component",
+      "description": "Listens for editor selection, change, and file open hooks."
+    },
+    "bbc_core/ide_auto_config.py": {
+      "classification": "Adapter Component",
+      "description": "Generates workspace configurations for specific IDE plugins."
+    },
+    "bbc_core/git_hooks.py": {
+      "classification": "Adapter Component",
+      "description": "Installs and triggers pre-commit or post-commit git hooks."
+    },
+    "bbc_core/config.py": {
+      "classification": "Infrastructure Component",
+      "description": "Central settings manager loaded from .env or JSON configs."
+    },
+    "bbc_core/bbc_logger.py": {
+      "classification": "Infrastructure Component",
+      "description": "Initializes and configures the standard bbc logger formatter."
+    },
+    "bbc_core/telemetry.py": {
+      "classification": "Infrastructure Component",
+      "description": "Structured JSON-L event logger monitoring heal, degenerate, and commands."
+    },
+    "bbc_core/state_manager.py": {
+      "classification": "Infrastructure Component",
+      "description": "Singleton tracking session budgets, active statuses, and telemetry events."
+    },
+    "bbc_core/http_server.py": {
+      "classification": "Infrastructure Component",
+      "description": "Serves a JSON-RPC HTTP server for external tools."
+    },
+    "bbc_core/memory_store.py": {
+      "classification": "Infrastructure Component",
+      "description": "SQLite database interface for embedding vector storage."
+    },
+    "bbc_core/global_menu.py": {
+      "classification": "Deprecated Component",
+      "description": "Interactive curses CLI menu. Superseded by automated RPC/HTTP servers."
+    },
+    "bbc_core/global_setup.py": {
+      "classification": "Deprecated Component",
+      "description": "Manual CLI environment setup router. Replaced by automated installers."
+    },
+    "bbc.py": {
+      "classification": "Infrastructure Component",
+      "description": "Command line entrypoint for the legacy bbc tool."
+    },
+    "bbc_daemon.py": {
+      "classification": "Infrastructure Component",
+      "description": "Runs background daemon loop monitoring workspace activity."
+    },
+    "bbc_installer.py": {
+      "classification": "Infrastructure Component",
+      "description": "Automated system dependencies installer."
+    },
+    "run_bbc.py": {
+      "classification": "Infrastructure Component",
+      "description": "Runner script redirecting parameters directly to CLI router."
+    }
+  }
+}

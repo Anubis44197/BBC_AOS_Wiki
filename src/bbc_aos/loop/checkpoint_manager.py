@@ -1,0 +1,1 @@
+# Placeholder for BBC-AOS Checkpoint Manager

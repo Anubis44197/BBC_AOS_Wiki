@@ -1,0 +1,8 @@
+--- FILE: main.py ---
+import os
+def main():
+    print("AOS run")
+
+--- FILE: README.md ---
+# Hybrid Pipeline Test
+This is a documentation section within a hybrid multi-file source stream.

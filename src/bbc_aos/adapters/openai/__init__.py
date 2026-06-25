@@ -1,0 +1,1 @@
+# OpenAI Adapter Subpackage
