@@ -714,9 +714,18 @@ def wiki_open() -> None:
         return
     click.echo(f"[WIKI] Opening BBC Wiki directory: {wiki_path}")
     try:
-        os.startfile(wiki_path)
+        if sys.platform == "win32":
+            startfile_fn = getattr(os, "startfile", None)
+            if startfile_fn is not None:
+                startfile_fn(wiki_path)
+        elif sys.platform == "darwin":
+            import subprocess
+            subprocess.call(["open", wiki_path])
+        else:
+            import subprocess
+            subprocess.call(["xdg-open", wiki_path])
     except Exception:
-        click.echo("[WIKI] Auto-open is supported on Windows. Directory path printed above.")
+        click.echo("[WIKI] Auto-open failed. Directory path printed above.")
 
 
 
