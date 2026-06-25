@@ -1,0 +1,871 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki
+configfile: pyproject.toml
+testpaths: tests
+collected 59 items
+
+tests/certification/test_final_certification.py .                        [  1%]
+tests/e2e/test_orchestrator.py FFFFFFFFF                                 [ 16%]
+tests/integration/test_approval_manager.py ......                        [ 27%]
+tests/integration/test_coder_agent.py ........                           [ 40%]
+tests/integration/test_commit_manager.py .........                       [ 55%]
+tests/integration/test_context_agent.py FFFFF                            [ 64%]
+tests/integration/test_planner_agent.py ....                             [ 71%]
+tests/integration/test_tester_agent.py ........                          [ 84%]
+tests/integration/test_verification_agent.py .........                   [100%]
+
+=================================== FAILURES ===================================
+_____________ TestAgentOrchestratorPipeline.test_audit_generation ______________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_audit_generation>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+___________ TestAgentOrchestratorPipeline.test_checkpoint_generation ___________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_checkpoint_generation>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+___________ TestAgentOrchestratorPipeline.test_deterministic_replay ____________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_deterministic_replay>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+___________ TestAgentOrchestratorPipeline.test_rejection_termination ___________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_rejection_termination>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+____________ TestAgentOrchestratorPipeline.test_resume_correctness _____________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_resume_correctness>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+__________ TestAgentOrchestratorPipeline.test_retry_limits_transient ___________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_retry_limits_transient>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+___________ TestAgentOrchestratorPipeline.test_rollback_correctness ____________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_rollback_correctness>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+_________ TestAgentOrchestratorPipeline.test_stage_execution_sequence __________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_stage_execution_sequence>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+_______________ TestAgentOrchestratorPipeline.test_state_updates _______________
+
+self = <tests.e2e.test_orchestrator.TestAgentOrchestratorPipeline testMethod=test_state_updates>
+
+    def setUp(self) -> None:
+        # Re-register agents in registry to clean up any testing side-effects
+        self.registry = AgentRegistry()
+        self.registry.reset()
+        self.registry.register(PlannerAgent)
+        self.registry.register(ContextAgent)
+        self.registry.register(CoderAgent)
+        self.registry.register(TesterAgent)
+        self.registry.register(VerificationAgent)
+    
+        # Setup StateManager singleton clean state
+        StateManager._reset_for_testing()
+        self.state_manager = StateManager(heal_budget=100, session_heal_budget=100)
+    
+        # Setup MemoryManager mock semantic database
+        self.memory_manager = MemoryManager()
+    
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # Register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/e2e/test_orchestrator.py:84: FileNotFoundError
+_______________ TestContextAgentProduction.test_audit_generation _______________
+
+self = <tests.integration.test_context_agent.TestContextAgentProduction testMethod=test_audit_generation>
+
+    def setUp(self) -> None:
+        self.agent = ContextAgent()
+        self.agent.initialize()
+    
+        # Populate memory manager with graph and context records
+        self.memory_manager = MemoryManager()
+    
+        # 1. Build and register symbol graph
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph in MemoryManager semantic layer
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # 2. Load and register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/integration/test_context_agent.py:69: FileNotFoundError
+_____________ TestContextAgentProduction.test_deterministic_replay _____________
+
+self = <tests.integration.test_context_agent.TestContextAgentProduction testMethod=test_deterministic_replay>
+
+    def setUp(self) -> None:
+        self.agent = ContextAgent()
+        self.agent.initialize()
+    
+        # Populate memory manager with graph and context records
+        self.memory_manager = MemoryManager()
+    
+        # 1. Build and register symbol graph
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph in MemoryManager semantic layer
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # 2. Load and register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/integration/test_context_agent.py:69: FileNotFoundError
+_____________ TestContextAgentProduction.test_packing_equivalence ______________
+
+self = <tests.integration.test_context_agent.TestContextAgentProduction testMethod=test_packing_equivalence>
+
+    def setUp(self) -> None:
+        self.agent = ContextAgent()
+        self.agent.initialize()
+    
+        # Populate memory manager with graph and context records
+        self.memory_manager = MemoryManager()
+    
+        # 1. Build and register symbol graph
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph in MemoryManager semantic layer
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # 2. Load and register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/integration/test_context_agent.py:69: FileNotFoundError
+____________ TestContextAgentProduction.test_syntax_and_validation _____________
+
+self = <tests.integration.test_context_agent.TestContextAgentProduction testMethod=test_syntax_and_validation>
+
+    def setUp(self) -> None:
+        self.agent = ContextAgent()
+        self.agent.initialize()
+    
+        # Populate memory manager with graph and context records
+        self.memory_manager = MemoryManager()
+    
+        # 1. Build and register symbol graph
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph in MemoryManager semantic layer
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # 2. Load and register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/integration/test_context_agent.py:69: FileNotFoundError
+____________ TestContextAgentProduction.test_task_limits_and_depth _____________
+
+self = <tests.integration.test_context_agent.TestContextAgentProduction testMethod=test_task_limits_and_depth>
+
+    def setUp(self) -> None:
+        self.agent = ContextAgent()
+        self.agent.initialize()
+    
+        # Populate memory manager with graph and context records
+        self.memory_manager = MemoryManager()
+    
+        # 1. Build and register symbol graph
+        project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../archive/legacy_bbc"))
+        if os.path.exists(os.path.join(project_sub, "Legacy_BBC")):
+            project_sub = os.path.join(project_sub, "Legacy_BBC")
+        elif not os.path.exists(project_sub):
+            project_sub = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../Legacy_BBC"))
+    
+        target_python_files = [
+            os.path.join(project_sub, "bbc_core", "bbc_scalar.py"),
+            os.path.join(project_sub, "bbc_core", "matrix_ops.py"),
+        ]
+        ext = SymbolExtractor()
+        fs_list = [ext.extract_from_file(f) for f in target_python_files]
+        fs_dicts = [fs.to_dict() for fs in fs_list if fs is not None]
+    
+        source_mapping = {}
+        for f in target_python_files:
+            with open(f, 'r', encoding='utf-8') as src_f:
+                source_mapping[f] = src_f.read()
+    
+        graph = SymbolGraph()
+        graph.build_from_symbols(fs_dicts, source_mapping)
+        self.symbol_graph = graph.to_dict()
+    
+        # Register symbol_graph in MemoryManager semantic layer
+        graph_record_params = {
+            "memory_id": "symbol_graph",
+            "trace_id": "tr_init",
+            "replay_id": "rp_init",
+            "deterministic_hash": "hash_graph",
+            "originating_agent": "system",
+            "layer": "semantic",
+            "data": self.symbol_graph
+        }
+        self.memory_manager.create_record(graph_record_params, actor_role="human")
+    
+        # 2. Load and register bbc_context.json
+        context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
+>       with open(context_path, 'r', encoding='utf-8') as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+
+tests/integration/test_context_agent.py:69: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_audit_generation - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_checkpoint_generation - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_deterministic_replay - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_rejection_termination - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_resume_correctness - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_retry_limits_transient - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_rollback_correctness - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_stage_execution_sequence - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/e2e/test_orchestrator.py::TestAgentOrchestratorPipeline::test_state_updates - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/integration/test_context_agent.py::TestContextAgentProduction::test_audit_generation - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/integration/test_context_agent.py::TestContextAgentProduction::test_deterministic_replay - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/integration/test_context_agent.py::TestContextAgentProduction::test_packing_equivalence - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/integration/test_context_agent.py::TestContextAgentProduction::test_syntax_and_validation - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+FAILED tests/integration/test_context_agent.py::TestContextAgentProduction::test_task_limits_and_depth - FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/BBC_AOS_Wiki/BBC_AOS_Wiki/archive/legacy_bbc/Legacy_BBC/.bbc/bbc_context.json'
+======================== 14 failed, 45 passed in 0.56s =========================
