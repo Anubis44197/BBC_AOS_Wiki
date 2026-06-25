@@ -1,4 +1,4 @@
-from typing import List, Optional, Callable, Dict, Any
+from typing import List, Optional, Callable
 from bbc_aos.knowledge.human.obsidian_registry import ObsidianRegistry
 from bbc_aos.knowledge.human.note_record import NoteRecord
 from bbc_aos.knowledge.human.proposal_artifact import ProposalArtifact

@@ -128,14 +128,14 @@ class HMPUIndexer:
             features[w] = features.get(w, 0) + 1
 
         v = [0.0] * 128
-        S, C, P = 1.0, 0.0, 0.0
+        S, C, _P = 1.0, 0.0, 0.0
         S_state = STABLE
 
         if aura_vector:
             try:
                 S = float(aura_vector[0]) if len(aura_vector) > 0 else 1.0
                 C = float(aura_vector[1]) if len(aura_vector) > 1 else 0.0
-                P = float(aura_vector[2]) if len(aura_vector) > 2 else 0.0
+                float(aura_vector[2]) if len(aura_vector) > 2 else 0.0
                 if hasattr(aura_vector[0], 'state'):
                     S_state = aura_vector[0].state
             except Exception as e:

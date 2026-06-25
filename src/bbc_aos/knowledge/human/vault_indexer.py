@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 from bbc_aos.knowledge.human.note_record import NoteRecord
 
 class VaultIndexer:

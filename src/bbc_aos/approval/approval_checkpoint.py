@@ -5,7 +5,7 @@ Provides snapshots of approval gate requests for transaction recovery.
 
 import copy
 import logging
-from typing import Dict, Any
+from typing import Dict
 from bbc_aos.approval.approval_request import ApprovalRequest
 
 logger = logging.getLogger("bbc_aos.approval.approval_checkpoint")

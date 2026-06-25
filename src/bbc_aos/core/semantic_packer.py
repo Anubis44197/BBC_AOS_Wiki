@@ -9,7 +9,7 @@ import json
 import logging
 import os
 from collections import Counter
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 # Centralized configuration component import
 from bbc_aos.config import BBCConfig

@@ -11,7 +11,7 @@ import os
 import threading
 import logging
 from collections import Counter
-from typing import List, Dict, Any, Optional, Tuple, Union
+from typing import List, Dict, Any, Optional
 
 # Import modular components
 from bbc_aos.core.bbc_scalar import (

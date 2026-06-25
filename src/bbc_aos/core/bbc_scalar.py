@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 # Set up structured logging for the BBC-AOS core mathematical model
 logger = logging.getLogger("bbc_aos.core.bbc_scalar")

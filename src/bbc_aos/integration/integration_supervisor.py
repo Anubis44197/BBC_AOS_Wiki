@@ -2,7 +2,6 @@ from typing import Dict, Any, List, Callable
 from bbc_aos.integration.subsystem_registry import SubsystemRegistry
 from bbc_aos.integration.health_manager import HealthManager
 from bbc_aos.integration.integration_audit_log import IntegrationAuditLog, IntegrationAuditEvent
-from bbc_aos.integration.integration_exceptions import IntegrationLifecycleException
 
 class IntegrationSupervisor:
     """

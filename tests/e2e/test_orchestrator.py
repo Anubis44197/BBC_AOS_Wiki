@@ -2,8 +2,6 @@ import os
 import sys
 import unittest
 import json
-import hashlib
-import copy
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
@@ -19,10 +17,7 @@ from bbc_aos.agents.verification_agent import VerificationAgent
 from bbc_aos.memory.runtime import MemoryManager
 from bbc_aos.memory.working.state_manager import StateManager
 from bbc_aos.integration import (
-    SubsystemRegistry,
-    IntegrationContext,
     IntegrationAuditLog,
-    IntegrationOrchestrator,
 )
 
 # Core Graph Extraction classes to build symbol graph programmatically

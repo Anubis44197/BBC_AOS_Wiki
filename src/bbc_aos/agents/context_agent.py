@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 from bbc_aos.agents.base_agent import BaseAgent
 
 # Configure logger
@@ -147,7 +147,7 @@ class ContextAgent(BaseAgent):
         # 5. Context reduction using ContextOptimizer
         from bbc_aos.core.context_optimizer import ContextOptimizer
         optimizer = ContextOptimizer(symbol_graph=symbol_graph, min_reduction_ratio=0.0)
-        decision = optimizer.optimize(target_symbol, context_file=target_file)
+        optimizer.optimize(target_symbol, context_file=target_file)
         
         # 6. Compilation using TaskContextCompiler
         from bbc_aos.core.context_compiler import TaskContextCompiler

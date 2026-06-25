@@ -6,7 +6,7 @@ Implements multi-language regex-based code extraction to build structural recipe
 import re
 import time
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 # Set up logging namespace
 logger = logging.getLogger("bbc_aos.knowledge.indexes.hmpu_quantizer")

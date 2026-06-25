@@ -10,8 +10,6 @@ from typing import Dict, Any, List, Optional
 
 from bbc_aos.approval.approval_exceptions import (
     InvalidTransitionException,
-    ApprovalTimeoutException,
-    ApprovalPolicyException,
 )
 from bbc_aos.approval.approval_request import ApprovalRequest
 from bbc_aos.approval.approval_result import ApprovalResult

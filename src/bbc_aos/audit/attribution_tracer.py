@@ -9,7 +9,7 @@ import os
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 # Set up logging namespace
 logger = logging.getLogger("bbc_aos.audit.attribution_tracer")

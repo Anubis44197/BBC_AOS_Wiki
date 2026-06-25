@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 from .bbc_scalar import BBCScalar, UNSTABLE, DEGENERATE, OmegaOperator
 
 # Set up structured logging for matrix operations
@@ -75,10 +75,10 @@ class MatrixOps:
         n = len(matrix)
         # Deep copy to augment
         M = [[BBCScalar(x.value, x.state, x.heal_count) for x in row] for row in matrix]
-        I = MatrixOps.identity(n)
+        eye_matrix = MatrixOps.identity(n)
         
         # Augment M with I -> [M | I]
-        aug = [M[i] + I[i] for i in range(n)]
+        aug = [M[i] + eye_matrix[i] for i in range(n)]
         
         log_info: List[str] = []
         rank = n

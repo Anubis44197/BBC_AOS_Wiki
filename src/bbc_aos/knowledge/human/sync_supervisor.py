@@ -1,4 +1,4 @@
-from typing import List, Callable, Optional, Dict, Any
+from typing import List, Callable, Dict, Any
 from bbc_aos.knowledge.human.note_record import NoteRecord
 from bbc_aos.knowledge.human.proposal_artifact import ProposalArtifact
 from bbc_aos.knowledge.human.sync_result import SyncResult

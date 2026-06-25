@@ -14,7 +14,6 @@ from typing import Dict, Any, List, Optional
 
 from bbc_aos.commit.commit_exceptions import (
     ValidationFailureException,
-    LimitExceededException,
     RollbackException,
 )
 from bbc_aos.commit.commit_result import CommitResult
@@ -65,7 +64,7 @@ class CommitManager:
         trace_id = verdict_data.get("trace_id", "")
         replay_id = verdict_data.get("replay_id", "")
         verdict = verdict_data.get("verdict", "")
-        deterministic_hash = verdict_data.get("deterministic_hash", "")
+        verdict_data.get("deterministic_hash", "")
 
         # Collect affected files
         modified = code_diff.get("modified_files", [])

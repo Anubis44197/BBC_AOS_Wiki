@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Set up logging namespace
 logger = logging.getLogger("bbc_aos.knowledge.graph.symbol_graph")

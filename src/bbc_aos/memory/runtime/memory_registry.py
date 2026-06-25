@@ -1,4 +1,4 @@
-from typing import Dict, Any, Type
+from typing import Dict, Type
 from bbc_aos.memory.runtime.memory_exceptions import MemoryFrozenRegistryException
 
 class MemoryRegistry:

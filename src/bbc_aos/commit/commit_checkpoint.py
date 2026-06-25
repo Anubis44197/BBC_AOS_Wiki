@@ -5,7 +5,7 @@ Saves immutable snapshots of file contents to allow transaction rollbacks.
 
 import os
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("bbc_aos.commit.commit_checkpoint")
 

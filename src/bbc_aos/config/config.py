@@ -5,7 +5,6 @@ Provides centralized configuration parameters and helper utilities for project d
 
 import os
 import logging
-from typing import Dict, Any
 
 # Set up logging
 logger = logging.getLogger("bbc_aos.config.config")

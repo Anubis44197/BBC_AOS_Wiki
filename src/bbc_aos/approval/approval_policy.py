@@ -4,7 +4,6 @@ Governs the routing of approval requests based on risk levels.
 """
 
 import logging
-from typing import Dict, Any
 
 logger = logging.getLogger("bbc_aos.approval.approval_policy")
 

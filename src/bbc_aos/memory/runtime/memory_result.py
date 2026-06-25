@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from bbc_aos.memory.runtime.memory_record import MemoryRecord
 
 @dataclass

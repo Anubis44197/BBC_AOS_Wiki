@@ -1,7 +1,7 @@
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List
 from bbc_aos.memory.runtime.memory_record import MemoryRecord
-from bbc_aos.memory.runtime.memory_exceptions import MemoryConflictException
+from bbc_aos.memory.runtime.memory_exceptions import MemoryConflictException, MemoryLifecycleException
 from bbc_aos.memory.runtime.memory_lifecycle_manager import MemoryLifecycleManager
 from bbc_aos.memory.runtime.memory_audit_log import MemoryAuditLog
 

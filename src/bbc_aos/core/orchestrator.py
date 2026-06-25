@@ -264,10 +264,14 @@ class LogTelemetryRecipe(BaseRecipe):
         
         for line in lines:
             l_up = line.upper()
-            if "INFO" in l_up: counts["INFO"] += 1
-            elif "ERROR" in l_up: counts["ERROR"] += 1
-            elif "WARN" in l_up: counts["WARNING"] += 1
-            elif "DEBUG" in l_up: counts["DEBUG"] += 1
+            if "INFO" in l_up:
+                counts["INFO"] += 1
+            elif "ERROR" in l_up:
+                counts["ERROR"] += 1
+            elif "WARN" in l_up:
+                counts["WARNING"] += 1
+            elif "DEBUG" in l_up:
+                counts["DEBUG"] += 1
             
             if any(x in l_up for x in ["EXCEPTION", "CRITICAL", "FATAL", "TIMEOUT"]):
                 anomalies.append(line[:120].strip())
@@ -326,15 +330,18 @@ class ConfigJsonRecipe(BaseRecipe):
             return self._trigger_cvp("output_format", "pre_execution", {"error": "Invalid JSON input"})
 
         def extract_structure(obj, depth=0):
-            if depth > 3: return "..."
+            if depth > 3:
+                return "..."
             if isinstance(obj, dict):
                 keys = list(obj.keys())
                 limited_keys = keys[:5]
                 res = {k: {"type": type(obj[k]).__name__, "val": extract_structure(obj[k], depth + 1)} for k in limited_keys}
-                if len(keys) > 5: res["_etc"] = f"{len(keys) - 5} keys"
+                if len(keys) > 5:
+                    res["_etc"] = f"{len(keys) - 5} keys"
                 return res
             elif isinstance(obj, list):
-                if not obj: return []
+                if not obj:
+                    return []
                 types_in_list = list(set([type(v).__name__ for v in obj]))
                 return {"list_of": types_in_list, "len": len(obj), "sample": extract_structure(obj[0], depth + 1) if obj else None}
             else:
@@ -405,7 +412,8 @@ class DocumentationRecipe(BaseRecipe):
                 words = trimmed.split()
                 for w in words:
                     if len(w) > 5 and w[0].isupper() and w.isalnum():
-                        if w not in keywords: keywords.append(w)
+                        if w not in keywords:
+                            keywords.append(w)
 
         structure = {
             "headers": headers[:20],

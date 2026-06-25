@@ -1,4 +1,4 @@
-from typing import Dict, Type, Optional
+from typing import Type, Optional
 from bbc_aos.agents.base_agent import BaseAgent
 
 class AgentRegistry:

@@ -1,4 +1,4 @@
-from typing import Dict, Any, Type
+from typing import Dict
 from bbc_aos.knowledge.human.obsidian_exceptions import ObsidianFrozenRegistryException
 
 class ObsidianRegistry:

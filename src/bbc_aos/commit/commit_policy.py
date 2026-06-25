@@ -5,7 +5,7 @@ Enforces transaction limits, sandboxing boundaries, and verification gates.
 
 import os
 import logging
-from typing import Dict, Any, List
+from typing import List
 from bbc_aos.commit.commit_exceptions import ValidationFailureException
 
 logger = logging.getLogger("bbc_aos.commit.commit_policy")

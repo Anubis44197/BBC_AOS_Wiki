@@ -113,7 +113,7 @@ class StateManager:
             cls._instance.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             
             logger.info(f"--- NEW SESSION STARTED (ID: {cls._instance.session_id}) ---")
-            logger.info(f"--- ENGINE: BBC Master v8.6 (7-State + Telemetry) ---")
+            logger.info("--- ENGINE: BBC Master v8.6 (7-State + Telemetry) ---")
             
             _tele.set_session(cls._instance.session_id)
             _tele.log_event("SESSION_START", {

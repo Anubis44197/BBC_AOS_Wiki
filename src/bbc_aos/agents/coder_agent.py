@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, Dict, FrozenSet, List, Optional, Set
+from typing import Any, Dict, List
 
 from bbc_aos.agents.base_agent import BaseAgent
 
@@ -241,9 +241,9 @@ class _DeterministicDiffEngine:
             f"+++ b/{file_path}",
             f"@@ -1,3 +1,4 @@ [hunk:{hunk_id}]",
             f" # Context: task={task_id}",
-            f"-# [PLACEHOLDER] original line",
+            "-# [PLACEHOLDER] original line",
             f"+# [MODIFIED] deterministic patch applied (hunk={hunk_id})",
-            f" # End of hunk",
+            " # End of hunk",
         ]
         return lines
 
@@ -251,13 +251,13 @@ class _DeterministicDiffEngine:
         """Generates a deterministic unified diff hunk for a new file addition."""
         hunk_id = file_hash[:8]
         lines: List[str] = [
-            f"--- /dev/null",
+            "--- /dev/null",
             f"+++ b/{new_file_path}",
             f"@@ -0,0 +1,4 @@ [hunk:{hunk_id}]",
-            f"+# BBC-AOS Generated File",
+            "+# BBC-AOS Generated File",
             f"+# task_id: {task_id}",
             f"+# hunk: {hunk_id}",
-            f"+",
+            "+",
         ]
         return lines
 

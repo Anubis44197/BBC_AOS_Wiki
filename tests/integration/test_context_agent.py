@@ -2,14 +2,12 @@ import os
 import sys
 import unittest
 import json
-import hashlib
-from typing import Dict, Any, Set
 
 # Ensure project path is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
 from bbc_aos.agents.context_agent import ContextAgent
-from bbc_aos.memory.runtime import MemoryManager, MemoryRecord
+from bbc_aos.memory.runtime import MemoryManager
 from bbc_aos.integration import (
     SubsystemRegistry,
     IntegrationContext,

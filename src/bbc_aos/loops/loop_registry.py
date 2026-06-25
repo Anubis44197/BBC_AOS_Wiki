@@ -1,4 +1,4 @@
-from typing import Dict, Any, Type
+from typing import Dict, Type
 from bbc_aos.loops.loop_exceptions import LoopFrozenRegistryException
 
 class LoopRegistry:
