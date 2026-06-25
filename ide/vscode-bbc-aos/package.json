@@ -1,0 +1,37 @@
+{
+  "name": "vscode-bbc-aos",
+  "displayName": "BBC-AOS",
+  "description": "Blast-radius safe agentic code orchestration",
+  "version": "0.1.0",
+  "publisher": "bbc-aos",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "activationEvents": [
+    "onCommand:bbc-aos.ask",
+    "onCommand:bbc-aos.index",
+    "onCommand:bbc-aos.vaultStatus",
+    "onCommand:bbc-aos.doctor"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "bbc-aos.ask",
+        "title": "BBC-AOS: Ask"
+      },
+      {
+        "command": "bbc-aos.index",
+        "title": "BBC-AOS: Index"
+      },
+      {
+        "command": "bbc-aos.vaultStatus",
+        "title": "BBC-AOS: Vault Status"
+      },
+      {
+        "command": "bbc-aos.doctor",
+        "title": "BBC-AOS: Doctor"
+      }
+    ]
+  },
+  "main": "./extension.js"
+}

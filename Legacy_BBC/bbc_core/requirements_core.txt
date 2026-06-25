@@ -1,0 +1,12 @@
+# Minimum runtime dependencies for BBC core.
+# The repository-level requirements.txt is the authoritative full install set.
+
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+requests>=2.31.0
+httpx2>=2.4.0
+python-dotenv>=1.0.0
+colorlog>=6.7.0
+numpy>=1.24.0
+tiktoken>=0.5.0

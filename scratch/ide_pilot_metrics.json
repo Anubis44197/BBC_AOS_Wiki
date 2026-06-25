@@ -1,0 +1,42 @@
+{
+  "verdict": "CERTIFIED",
+  "scenarios": [
+    {
+      "scenario": "bugfix",
+      "total_runs": 100,
+      "average_latency_ms": 379.53892300021835,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "approval_consistency_rate": 1.0,
+      "interruption_recovery_rate": 1.0
+    },
+    {
+      "scenario": "feature",
+      "total_runs": 100,
+      "average_latency_ms": 373.6587369994959,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "approval_consistency_rate": 1.0,
+      "interruption_recovery_rate": 1.0
+    },
+    {
+      "scenario": "refactor",
+      "total_runs": 100,
+      "average_latency_ms": 41.831907000159845,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "approval_consistency_rate": 1.0,
+      "interruption_recovery_rate": 1.0
+    },
+    {
+      "scenario": "documentation",
+      "total_runs": 100,
+      "average_latency_ms": 381.77131799981,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "approval_consistency_rate": 1.0,
+      "interruption_recovery_rate": 1.0
+    }
+  ],
+  "timestamp": "2026-06-24T20:37:51.825955+00:00"
+}

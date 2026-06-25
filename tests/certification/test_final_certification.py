@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+import json
+from typing import Dict, Any, List
 
 # Ensure project path is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
@@ -10,6 +12,7 @@ from bbc_aos.core.bbc_scalar import BBCScalar, STABLE
 from bbc_aos.core.matrix_ops import MatrixOps
 from bbc_aos.agents.agent_registry import AgentRegistry
 from bbc_aos.loops.loop_registry import LoopRegistry
+from bbc_aos.loops.loop_engine import LoopEngine
 from bbc_aos.memory.runtime.memory_registry import MemoryRegistry
 from bbc_aos.knowledge.human.obsidian_registry import ObsidianRegistry
 from bbc_aos.integration import (
@@ -17,6 +20,7 @@ from bbc_aos.integration import (
     IntegrationContext,
     IntegrationOrchestrator,
     IntegrationAuditLog,
+    IntegrationAuditEvent,
     IntegrationValidationException,
 )
 

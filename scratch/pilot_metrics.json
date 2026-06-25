@@ -1,0 +1,38 @@
+{
+  "verdict": "CERTIFIED",
+  "scenarios": [
+    {
+      "scenario": "bugfix",
+      "total_runs": 100,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "baseline_commit_hash": "0e066deea6ebfe4494083bd8663fa31630bb629aa34d3b0c6f25909a25ef0c2e",
+      "baseline_approval_hash": "dcfe57329d0d41ddcf7cd3c6db567d64829ab090dbcf58f5e820a0c48c27e251"
+    },
+    {
+      "scenario": "feature",
+      "total_runs": 100,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "baseline_commit_hash": "130bf4d969c0cb348cefe23c66a7195c69e033a266b427c107dcda7042bceb2b",
+      "baseline_approval_hash": "81b0661f8c0ba41f52a9b42a14d011186fe34b120c4850a6f44d0a41f9bd33c9"
+    },
+    {
+      "scenario": "refactor",
+      "total_runs": 100,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "baseline_commit_hash": "1eaf5bd489c9378808a2e117e34db5052affae75b6552b2f3d8f6153f7c8527f",
+      "baseline_approval_hash": "25ef9018ec5c632380c02c5f8c1675fe719875625f11ffa72496aa8f1e9ee372"
+    },
+    {
+      "scenario": "documentation",
+      "total_runs": 100,
+      "determinism_rate": 1.0,
+      "rollback_success_rate": 1.0,
+      "baseline_commit_hash": "b8b44f9a8064fb71bb532794d0473e2414849ca078c1b37752423c0112aee49f",
+      "baseline_approval_hash": "ab4b056ba304769af18b1881cde3dbc886b8759e9f7222e10efa7d6f80cfb89f"
+    }
+  ],
+  "timestamp": "2026-06-24T20:26:59.880536+00:00"
+}

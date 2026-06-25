@@ -1,0 +1,601 @@
+import sys
+import json
+import os
+import asyncio
+import hashlib
+import ast
+from .hmpu_engine import HMPUEngine
+from .state_manager import StateManager
+from .hmpu_indexer import HMPUIndexer
+from .config import BBCConfig
+from .scan_profile import SOURCE_EXTENSIONS, iter_source_files
+
+# Import the Polyglot Quantizer (tek doğruluk kaynağı: bbc_core)
+from .hmpu_quantizer import HMPUQuantizer
+
+class BBCNativeAdapter:
+    def __init__(self, project_root: str = "."):
+        self.state_manager = StateManager()
+        self.engine = HMPUEngine(self.state_manager)
+        self.quantizer = HMPUQuantizer()
+        # Use .bbc/indices/ for isolation; fallback to 02_Indices/ for backward compat
+        bbc_index_dir = os.path.join(project_root, ".bbc", "indices")
+        os.makedirs(bbc_index_dir, exist_ok=True)
+        self.indexer = HMPUIndexer(index_dir=bbc_index_dir)
+
+    def compute_hash(self, content: str) -> str:
+        """Computes SHA-256 hash of content for hallucination detection."""
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+    async def analyze_project(self, target_root, output_file=None, silent: bool = False, model: str = "gpt-4"):
+        root_to_scan = os.path.abspath(target_root) if target_root else os.getcwd()
+        output_file_abs = os.path.abspath(output_file) if output_file else None
+        
+        files_found = []
+        project_recipes = []
+        fingerprint = {}
+        total_raw_bytes = 0
+        total_lines = 0
+        total_code_lines = 0
+        syntax_errors = []
+        
+        # Polyglot Extension List
+        exts = SOURCE_EXTENSIONS
+        comment_prefixes = ('#', '//', '/*', '*')
+        
+        if not silent:
+            print(f"[*] Polyglot Scan Started: {root_to_scan}")
+
+        # RECURSIVE SCAN & QUANTIZATION
+        for path in iter_source_files(
+            root_to_scan,
+            extensions=exts,
+            max_files=BBCConfig.MAX_FILES,
+            output_file_abs=output_file_abs,
+        ):
+            file_path = str(path)
+            try:
+                ext = path.suffix.lower()
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                    content = f.read()
+
+                rel_path = os.path.relpath(file_path, root_to_scan)
+                files_found.append(rel_path)
+
+                if ext == '.py':
+                    try:
+                        ast.parse(content)
+                    except SyntaxError as e:
+                        syntax_errors.append({
+                            "file": rel_path,
+                            "line": e.lineno,
+                            "msg": e.msg,
+                            "type": "SYNTAX_ERROR (Python)",
+                        })
+
+                try:
+                    st = os.stat(file_path)
+                    fingerprint[rel_path] = {"mtime": float(st.st_mtime), "size": int(st.st_size)}
+                except Exception:
+                    pass
+
+                # Encode once, reuse for byte count and hash
+                content_bytes = content.encode('utf-8')
+                total_raw_bytes += len(content_bytes)
+
+                # Single-pass line counting (v7.2 optimized)
+                file_total_lines = 0
+                file_code_lines = 0
+                for line in content.splitlines():
+                    file_total_lines += 1
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith(comment_prefixes):
+                        file_code_lines += 1
+
+                total_lines += file_total_lines
+                total_code_lines += file_code_lines
+
+                # Apply v6.0 Quantization
+                analysis = self.quantizer.process_content(content, file_ext=ext)
+
+                # [VERIFIER] Compute hash from pre-encoded bytes
+                file_hash = hashlib.sha256(content_bytes).hexdigest()
+
+                from bbc_core.token_optimizer import TokenOptimizer
+                file_tokens = TokenOptimizer().count_tokens(content, model=model)
+
+                # [DEEP RECALL] Add to vector index
+                self.indexer.add_to_index(content, {"path": rel_path, "hash": file_hash})
+
+                project_recipes.append({
+                    "path": rel_path,
+                    "structure": analysis["structure"],
+                    "stats": {**analysis["stats"], "lines": file_total_lines, "code_lines": file_code_lines, "hash": file_hash, "tokens": file_tokens, "bytes": len(content_bytes), "token_model": model}
+                })
+
+                self.state_manager.increment_files_analyzed()
+
+                # Progress reporting for large projects
+                count = len(files_found)
+                if count % 1000 == 0 and not silent:
+                    print(f"[*] Progress: {count:,} files processed...")
+            except Exception:
+                continue
+
+        if not silent:
+            print(f"[*] Scan complete: {len(files_found)} files found.")
+
+        # Build dependency graph from import statements
+        dependency_graph = self._build_dependency_graph(project_recipes, files_found)
+
+        # Build Context JSON
+        import time as _time
+        _generated_at = _time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        context_json = {
+            "bbc_instructions_version": "1.0",
+            "context_schema_version": "8.5",
+            "generated_at": _generated_at,
+            "context_fresh": True,
+            "fail_policy": "fail_closed",
+            "enforcement_level": "strict",
+            "project_skeleton": {
+                "root": root_to_scan,
+                "file_count": len(files_found),
+                "hierarchy": files_found
+            },
+            "code_structure": project_recipes,
+            "dependency_graph": dependency_graph,
+            "constraint_status": "syntax_error" if syntax_errors else "verified",
+            "metrics": {
+                "files_scanned": len(files_found),
+                "total_lines": total_lines,
+                "code_lines": total_code_lines,
+                "raw_bytes": total_raw_bytes,
+                "context_bytes": 0,
+                "compression_ratio": 0.0,
+                "unified_savings_confidence": self.engine.get_aura_confidence(),
+                "syntax_error_count": len(syntax_errors)
+            }
+        }
+        if syntax_errors:
+            context_json["syntax_errors"] = syntax_errors
+
+        # Estimate context size without full serialization (v7.2 optimized)
+        # Approximate: each recipe ~200 bytes avg, skeleton ~50 bytes per file
+        est_recipe_bytes = len(project_recipes) * 200
+        est_skeleton_bytes = len(files_found) * 50
+        est_overhead = 500  # JSON structure overhead
+        context_bytes = est_recipe_bytes + est_skeleton_bytes + est_overhead
+        context_json["metrics"]["context_bytes"] = context_bytes
+        
+        if total_raw_bytes > 0:
+            context_json["metrics"]["compression_ratio"] = round(1 - (context_bytes / total_raw_bytes), 2)
+        
+        # [DEEP RECALL] Save vector index to disk
+        index_path = self.indexer.finalize_and_save("bbc_main_memory", len(files_found))
+        context_json["index_path"] = index_path
+
+        # ─── SYMBOL PIPELINE (Opsiyonel — hata verirse ana akışı bozmaz) ───
+        try:
+            from .symbol_extractor import SymbolExtractor
+            from .symbol_graph import SymbolGraphBuilder
+
+            if not silent:
+                print("[*] Symbol Pipeline: Extracting symbols...")
+
+            extractor = SymbolExtractor()
+            symbol_results = extractor.extract_from_directory(
+                root_to_scan, max_files=BBCConfig.MAX_FILES
+            )
+
+            if symbol_results:
+                # Sembol verilerini dict formatına çevir
+                symbols_data = [sr.to_dict() for sr in symbol_results]
+
+                # Kaynak dosyaları topla (sadece Python — AST çağrı analizi için)
+                source_mapping = {}
+                for sr in symbol_results:
+                    fpath = os.path.join(root_to_scan, sr.file) if not os.path.isabs(sr.file) else sr.file
+                    if os.path.exists(fpath) and sr.language == "python":
+                        try:
+                            with open(fpath, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                                source_mapping[sr.file] = f.read()
+                        except Exception:
+                            pass
+
+                # Symbol Graph oluştur
+                builder = SymbolGraphBuilder()
+                if source_mapping:
+                    graph = builder.build_with_source_mapping(symbols_data, source_mapping)
+                else:
+                    graph = builder.build_simple(symbols_data)
+
+                graph_data = graph.to_dict()
+                graph_stats = graph_data.get("graph_stats", {})
+
+                # Context'e symbol analiz sonuçlarını ekle
+                context_json["symbol_analysis"] = {
+                    "total_symbols": graph_stats.get("total_symbols", len(symbols_data)),
+                    "total_calls": graph_stats.get("total_calls", 0),
+                    "internal_calls": graph_stats.get("internal_calls", 0),
+                    "external_calls": graph_stats.get("external_calls", 0),
+                    "files_with_symbols": len(symbol_results),
+                    "extractor_stats": extractor.get_stats(),
+                }
+
+                # Kritik sembolleri tespit et (en çok çağrılan ilk 20)
+                symbols_list = graph_data.get("symbols", [])
+                critical = sorted(
+                    symbols_list,
+                    key=lambda s: len(s.get("called_by", [])),
+                    reverse=True
+                )[:20]
+                context_json["symbol_analysis"]["critical_symbols"] = [
+                    {
+                        "symbol": s.get("symbol", ""),
+                        "type": s.get("type", ""),
+                        "file": s.get("file", ""),
+                        "called_by_count": len(s.get("called_by", [])),
+                    }
+                    for s in critical if s.get("called_by")
+                ]
+
+                if not silent:
+                    sym_count = graph_stats.get("total_symbols", 0)
+                    call_count = graph_stats.get("total_calls", 0)
+                    crit_count = len(context_json["symbol_analysis"]["critical_symbols"])
+                    print(f"[*] Symbol Pipeline: {sym_count} symbols, {call_count} calls, {crit_count} critical")
+
+        except ImportError as e:
+            if not silent:
+                print(f"[WARN] Symbol Pipeline skipped (missing module): {e}")
+        except Exception as e:
+            if not silent:
+                print(f"[WARN] Symbol Pipeline error (non-critical): {e}")
+
+        context_json["_fingerprint"] = fingerprint
+        return context_json
+
+    async def analyze_project_incremental(self, target_root, output_file=None, silent: bool = False, model: str = "gpt-4"):
+        """
+        Incremental Analysis — only re-processes files that changed since
+        the last full/incremental analyze.  Falls back to full analysis when
+        no previous change index exists.
+        """
+        from .change_tracker import ChangeTracker
+        from .config import BBCConfig
+        import time as _time
+
+        root_to_scan = os.path.abspath(target_root) if target_root else os.getcwd()
+        output_file_abs = os.path.abspath(output_file) if output_file else None
+
+        tracker = ChangeTracker(root_to_scan)
+        has_prev = tracker.load_previous_index()
+        tracker.scan_current_state(output_file_abs)
+
+        if not has_prev:
+            if not silent:
+                print("[*] No previous index found — running full analysis.")
+            ctx = await self.analyze_project(target_root, output_file=output_file, silent=silent, model=model)
+            tracker.save_index()
+            segments = {}
+            for recipe in ctx.get("code_structure", []):
+                path = recipe.get("path", "")
+                if path:
+                    segments[path] = recipe
+            tracker.save_segments(segments)
+            ctx["incremental"] = {"mode": "full", "reason": "no_previous_index"}
+            return ctx
+
+        diff = tracker.compute_diff()
+        affected = tracker.get_affected_files()
+
+        if not silent:
+            print(f"[*] Incremental Scan: {tracker.diff_summary(diff)}")
+
+        if not affected and not diff["removed"]:
+            if not silent:
+                print("[*] No changes — loading cached context.")
+            ctx_path = BBCConfig.get_context_path(root_to_scan)
+            if os.path.exists(ctx_path):
+                with open(ctx_path, "r", encoding="utf-8") as f:
+                    ctx = json.load(f)
+                ctx["incremental"] = {"mode": "cached", "changes": 0}
+                ctx["_fingerprint"] = tracker._current_metadata
+                try:
+                    from bbc_core.token_optimizer import TokenOptimizer
+                    token_counter = TokenOptimizer()
+                except Exception:
+                    token_counter = None
+
+                normalized = False
+                for recipe in ctx.get("code_structure", []):
+                    if not isinstance(recipe, dict):
+                        continue
+                    rel_path = recipe.get("path", "")
+                    stats = recipe.setdefault("stats", {})
+                    if not rel_path or not isinstance(stats, dict):
+                        continue
+                    if stats.get("bytes") and stats.get("tokens") and stats.get("token_model") == model:
+                        continue
+                    abs_path = os.path.join(root_to_scan, rel_path)
+                    try:
+                        with open(abs_path, "r", encoding="utf-8-sig") as f:
+                            content = f.read()
+                        content_bytes = content.encode("utf-8")
+                        stats["bytes"] = len(content_bytes)
+                        if token_counter is not None:
+                            stats["tokens"] = token_counter.count_tokens(content, model=model)
+                        elif not stats.get("tokens"):
+                            stats["tokens"] = len(content) // 4
+                        stats["token_model"] = model
+                        normalized = True
+                    except Exception:
+                        continue
+                if normalized:
+                    tracker.save_segments({
+                        recipe.get("path", ""): recipe
+                        for recipe in ctx.get("code_structure", [])
+                        if isinstance(recipe, dict) and recipe.get("path")
+                    })
+                return ctx
+            if not silent:
+                print("[*] Cache missing — running full analysis.")
+            ctx = await self.analyze_project(target_root, output_file=output_file, silent=silent, model=model)
+            tracker.save_index()
+            return ctx
+
+        exts = SOURCE_EXTENSIONS
+        comment_prefixes = ('#', '//', '/*', '*')
+
+        new_recipes = []
+        inc_raw_bytes = 0
+        syntax_errors = []
+
+        for rel_path in affected:
+            abs_path = os.path.join(root_to_scan, rel_path)
+            if not os.path.exists(abs_path):
+                continue
+            ext = os.path.splitext(rel_path)[1].lower()
+            if not ext or ext not in exts:
+                continue
+            try:
+                with open(abs_path, 'r', encoding='utf-8-sig') as f:
+                    content = f.read()
+                content_bytes = content.encode('utf-8')
+                inc_raw_bytes += len(content_bytes)
+                if ext == '.py':
+                    try:
+                        ast.parse(content)
+                    except SyntaxError as e:
+                        syntax_errors.append({
+                            "file": rel_path,
+                            "line": e.lineno,
+                            "msg": e.msg,
+                            "type": "SYNTAX_ERROR (Python)",
+                        })
+                file_total_lines = 0
+                file_code_lines = 0
+                for line in content.splitlines():
+                    file_total_lines += 1
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith(comment_prefixes):
+                        file_code_lines += 1
+
+                analysis = self.quantizer.process_content(content, file_ext=ext)
+                file_hash = hashlib.sha256(content_bytes).hexdigest()
+                self.indexer.add_to_index(content, {"path": rel_path, "hash": file_hash})
+
+                from bbc_core.token_optimizer import TokenOptimizer
+                file_tokens = TokenOptimizer().count_tokens(content, model=model)
+
+                new_recipes.append({
+                    "path": rel_path,
+                    "structure": analysis["structure"],
+                    "stats": {**analysis["stats"], "lines": file_total_lines,
+                              "code_lines": file_code_lines, "hash": file_hash,
+                              "tokens": file_tokens, "bytes": len(content_bytes),
+                              "token_model": model}
+                })
+            except Exception:
+                continue
+
+        if not silent:
+            print(f"[*] Incremental: {len(new_recipes)} file(s) re-analyzed.")
+
+        old_segments = tracker.load_segments()
+        merged = tracker.merge_segments(old_segments, new_recipes, diff["removed"])
+        tracker.save_segments(merged)
+        tracker.save_index()
+
+        all_recipes = list(merged.values())
+        all_files = list(merged.keys())
+
+        try:
+            from bbc_core.token_optimizer import TokenOptimizer
+            token_counter = TokenOptimizer()
+        except Exception:
+            token_counter = None
+
+        for recipe in all_recipes:
+            if not isinstance(recipe, dict):
+                continue
+            rel_path = recipe.get("path", "")
+            stats = recipe.setdefault("stats", {})
+            if not rel_path or not isinstance(stats, dict):
+                continue
+            if stats.get("bytes") and stats.get("tokens") and stats.get("token_model") == model:
+                continue
+            abs_path = os.path.join(root_to_scan, rel_path)
+            try:
+                with open(abs_path, "r", encoding="utf-8-sig") as f:
+                    content = f.read()
+                content_bytes = content.encode("utf-8")
+                stats["bytes"] = len(content_bytes)
+                if token_counter is not None:
+                    stats["tokens"] = token_counter.count_tokens(content, model=model)
+                elif not stats.get("tokens"):
+                    stats["tokens"] = len(content) // 4
+                stats["token_model"] = model
+            except Exception:
+                continue
+
+        tracker.save_segments(merged)
+
+        dependency_graph = self._build_dependency_graph(all_recipes, all_files)
+        _generated_at = _time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        total_lines = 0
+        total_code_lines = 0
+        total_raw_bytes = 0
+        for recipe in all_recipes:
+            stats = recipe.get("stats", {})
+            total_lines += stats.get("lines", 0)
+            total_code_lines += stats.get("code_lines", 0)
+            total_raw_bytes += int(stats.get("bytes") or 0)
+
+        if total_raw_bytes == 0:
+            total_raw_bytes = sum(
+                int(meta.get("size", 0))
+                for meta in tracker._current_metadata.values()
+                if isinstance(meta, dict)
+            )
+
+        context_json = {
+            "bbc_instructions_version": "1.0",
+            "context_schema_version": "8.5",
+            "generated_at": _generated_at,
+            "context_fresh": True,
+            "fail_policy": "fail_closed",
+            "enforcement_level": "strict",
+            "project_skeleton": {
+                "root": root_to_scan,
+                "file_count": len(all_files),
+                "hierarchy": sorted(all_files)
+            },
+            "code_structure": all_recipes,
+            "dependency_graph": dependency_graph,
+            "constraint_status": "syntax_error" if syntax_errors else "verified",
+            "metrics": {
+                "files_scanned": len(all_files),
+                "total_lines": total_lines,
+                "code_lines": total_code_lines,
+                "raw_bytes": total_raw_bytes,
+                "context_bytes": 0,
+                "compression_ratio": 0.0,
+                "unified_savings_confidence": self.engine.get_aura_confidence(),
+                "syntax_error_count": len(syntax_errors)
+            },
+            "incremental": {
+                "mode": "incremental",
+                "added": len(diff["added"]),
+                "changed": len(diff["changed"]),
+                "removed": len(diff["removed"]),
+                "reanalyzed": len(new_recipes),
+                "cached": len(all_files) - len(new_recipes),
+            }
+        }
+        if syntax_errors:
+            context_json["syntax_errors"] = syntax_errors
+
+        est_recipe_bytes = len(all_recipes) * 200
+        est_skeleton_bytes = len(all_files) * 50
+        context_bytes = est_recipe_bytes + est_skeleton_bytes + 500
+        context_json["metrics"]["context_bytes"] = context_bytes
+        if total_raw_bytes > 0:
+            context_json["metrics"]["compression_ratio"] = round(1 - (context_bytes / total_raw_bytes), 2)
+        context_json["_fingerprint"] = tracker._current_metadata
+
+        return context_json
+
+    def _build_dependency_graph(self, project_recipes: list, files_found: list) -> dict:
+        """
+        Build a dependency graph from import statements.
+        Maps each file to what it imports (depends_on) and what imports it (depended_by).
+        v7.2 Optimized: Uses suffix-based lookup instead of O(N) scan per import.
+        """
+        import re
+
+        def normalize(path):
+            return path.replace('\\', '/').rsplit('.', 1)[0]
+
+        def import_to_module(import_entry):
+            """
+            Accept both raw import statements ("from x import y", "import x")
+            dynamic imports ("importlib.import_module('x')", "__import__('x')"),
+            and normalized extractor output ("x", "x.y").
+            """
+            text = str(import_entry or "").strip()
+            if not text:
+                return ""
+
+            dynamic = re.search(r'(?:importlib\.import_module|__import__)\(\s*[\'"]([\w.]+)[\'"]', text)
+            if dynamic:
+                text = dynamic.group(1)
+
+            m = re.match(r'(?:from\s+|import\s+)([\w.]+)', text)
+            if m:
+                text = m.group(1)
+
+            return text.replace('.', '/')
+
+        suffix_map = {}
+        full_map = {}
+        for f in files_found:
+            norm = normalize(f)
+            full_map[norm] = f
+            suffix = norm.split('/')[-1]
+            if suffix not in suffix_map:
+                suffix_map[suffix] = []
+            suffix_map[suffix].append((norm, f))
+
+        graph = {}
+
+        for recipe in project_recipes:
+            file_path = recipe.get("path", "")
+            imports = recipe.get("structure", {}).get("imports", [])
+
+            depends_on = []
+            for imp_line in imports:
+                module = import_to_module(imp_line)
+                if not module:
+                    continue
+
+                module_suffix = module.split('/')[-1]
+                candidates = suffix_map.get(module_suffix, [])
+                for known_norm, known_path in candidates:
+                    if known_path != file_path and (known_norm.endswith(module) or module.endswith(module_suffix)):
+                        depends_on.append(known_path)
+                        break
+
+            graph[file_path] = {
+                "depends_on": list(set(depends_on)),
+                "depended_by": []
+            }
+
+        for file_path, info in graph.items():
+            for dep in info["depends_on"]:
+                if dep in graph:
+                    graph[dep]["depended_by"].append(file_path)
+
+        for file_path in graph:
+            graph[file_path]["depended_by"] = list(set(graph[file_path]["depended_by"]))
+
+        return graph
+
+    async def main_loop(self):
+        while True:
+            line = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+            if not line: break
+            try:
+                msg = json.loads(line)
+                if msg.get("command") == "analyze":
+                    res = await self.analyze_project(msg.get("root"))
+                    print(json.dumps({"status": "ok", "context": res}, ensure_ascii=False))
+                    sys.stdout.flush()
+                elif msg.get("command") == "exit": break
+            except Exception: continue
+
+if __name__ == "__main__":
+    asyncio.run(BBCNativeAdapter().main_loop())

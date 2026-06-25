@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "data": {
+    "classes": [
+      "class DataProcessor:"
+    ],
+    "functions": [
+      "def __init__(self, size: int) -> None:",
+      "def filter_data(self, data: list) -> list:",
+      "def global_handler(item):"
+    ],
+    "imports": [
+      "import os",
+      "import sys",
+      "from collections import Counter"
+    ]
+  },
+  "metrics": {
+    "raw_bytes": 303,
+    "recipe_bytes": 244,
+    "savings_ratio": "19.47%"
+  }
+}

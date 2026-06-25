@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import re
+import os
 from typing import Any, Dict, List, Set
 
 from bbc_aos.agents.base_agent import BaseAgent
@@ -73,6 +74,12 @@ class _VerificationEngine:
 
         # 6. Contract Validation
         self._verify_contracts(code_diff, validation_plan, violations)
+
+        # 7. Security Guardrails
+        self._verify_security(code_diff, packed_context, violations)
+
+        # 8. Architectural Invariants
+        self._verify_invariants(code_diff, validation_plan, packed_context, violations)
 
         return violations
 
@@ -305,6 +312,91 @@ class _VerificationEngine:
         expected_ids = [t.get("task_id") for t in sorted_tasks]
         if actual_ids != expected_ids:
             violations.append("Contract violation: Validation tasks are not ordered deterministically by priority and task_id")
+
+    def _verify_security(
+        self,
+        code_diff: Dict[str, Any],
+        packed_context: Dict[str, Any],
+        violations: List[str],
+    ) -> None:
+        """Runs C5 security checks before approval."""
+        patch = code_diff.get("patch", "")
+        changed_files = (
+            code_diff.get("modified_files", [])
+            + code_diff.get("added_files", [])
+            + code_diff.get("removed_files", [])
+        )
+        selected_files = packed_context.get("selected_files", [])
+        packed_body = packed_context.get("packed_context", packed_context)
+        if not selected_files:
+            selected_files = packed_body.get("project_skeleton", {}).get("hierarchy", [])
+        workspace_root = packed_body.get("project_skeleton", {}).get("root", os.getcwd())
+
+        from bbc_aos.security.guardrails import SecurityGuardrails
+        from bbc_aos.security.permission_engine import PermissionEngine
+        from bbc_aos.security.hallucination_detector import HallucinationDetector
+
+        guardrail_result = SecurityGuardrails().validate_patch(patch)
+        for finding in guardrail_result.get("findings", []):
+            if finding.get("severity") == "BLOCK":
+                violations.append(f"Security violation: {finding.get('message')}")
+
+        permission_result = PermissionEngine().validate_change_set(
+            changed_files=changed_files,
+            workspace_root=workspace_root,
+            blast_radius=selected_files,
+        )
+        for violation in permission_result.get("violations", []):
+            violations.append(f"Permission violation: {violation}")
+
+        known_symbols = self._known_symbols_from_context(packed_context)
+        hallucination_result = HallucinationDetector().validate_patch(
+            patch=patch,
+            workspace_root=workspace_root,
+            known_files=selected_files + changed_files,
+            known_symbols=known_symbols,
+        )
+        for violation in hallucination_result.get("violations", []):
+            violations.append(f"Hallucination violation: {violation}")
+
+    def _known_symbols_from_context(self, packed_context: Dict[str, Any]) -> List[str]:
+        symbols: List[str] = []
+        for recipe in packed_context.get("code_structure", []):
+            structure = recipe.get("structure", {})
+            for key in ("classes", "functions"):
+                values = structure.get(key, [])
+                for value in values:
+                    if isinstance(value, str):
+                        match = re.search(r"(?:class|def)\s+([A-Za-z_][A-Za-z0-9_]*)", value)
+                        symbols.append(match.group(1) if match else value)
+                    elif isinstance(value, dict) and value.get("name"):
+                        symbols.append(value["name"])
+        return symbols
+
+    def _verify_invariants(
+        self,
+        code_diff: Dict[str, Any],
+        validation_plan: Dict[str, Any],
+        packed_context: Dict[str, Any],
+        violations: List[str],
+    ) -> None:
+        """Runs architectural invariant checks before approval."""
+        changed_files = (
+            code_diff.get("modified_files", [])
+            + code_diff.get("added_files", [])
+            + code_diff.get("removed_files", [])
+        )
+        packed_body = packed_context.get("packed_context", packed_context)
+        workspace_root = packed_body.get("project_skeleton", {}).get("root", os.getcwd())
+        from bbc_aos.security.invariant_engine import InvariantEngine
+
+        result = InvariantEngine(workspace_root).validate(
+            changed_files=changed_files,
+            patch=code_diff.get("patch", ""),
+            validation_plan=validation_plan,
+        )
+        for violation in result.get("violations", []):
+            violations.append(f"Invariant violation: {violation}")
 
 
 # ---------------------------------------------------------------------------

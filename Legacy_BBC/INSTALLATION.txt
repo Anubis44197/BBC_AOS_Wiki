@@ -1,0 +1,43 @@
+BBC v8.6 Installation
+=====================
+
+Requirements
+------------
+- Python 3.10+ recommended
+- Git
+
+Install
+-------
+git clone https://github.com/Anubis44197/BBC_MASTER_BBCMath.git BBC
+cd BBC
+pip install -r requirements.txt
+
+Analyze a project
+-----------------
+python bbc.py analyze /path/to/project
+python bbc.py verify /path/to/project
+python bbc.py inject /path/to/project
+
+Windows one-command setup
+-------------------------
+From the target project folder:
+
+git clone https://github.com/Anubis44197/BBC_MASTER_BBCMath.git BBC
+BBC\setup.bat
+
+Linux/macOS one-command setup
+-----------------------------
+From the target project folder:
+
+git clone https://github.com/Anubis44197/BBC_MASTER_BBCMath.git BBC
+bash BBC/setup.sh
+
+Remove BBC traces from a target project
+---------------------------------------
+python bbc.py purge /path/to/project --force
+
+Support files
+-------------
+- README.md
+- QUICK_START.md
+- USER_GUIDE.md

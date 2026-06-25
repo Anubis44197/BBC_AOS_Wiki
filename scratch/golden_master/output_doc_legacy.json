@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "data": {
+    "headers": [
+      "# Project Documentation",
+      "## 1. Overview",
+      "## 2. Resources"
+    ],
+    "summary": "Document length: 9 lines.",
+    "keywords": [
+      "Project",
+      "Documentation"
+    ],
+    "links": []
+  },
+  "metrics": {
+    "raw_bytes": 209,
+    "recipe_bytes": 172,
+    "savings_ratio": "17.70%"
+  }
+}

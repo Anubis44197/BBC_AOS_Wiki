@@ -9,11 +9,16 @@ import copy
 import hashlib
 import json
 import logging
+import re
+import shutil
+import tempfile
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
 
 from bbc_aos.commit.commit_exceptions import (
     ValidationFailureException,
+    LimitExceededException,
     RollbackException,
 )
 from bbc_aos.commit.commit_result import CommitResult
@@ -64,7 +69,7 @@ class CommitManager:
         trace_id = verdict_data.get("trace_id", "")
         replay_id = verdict_data.get("replay_id", "")
         verdict = verdict_data.get("verdict", "")
-        verdict_data.get("deterministic_hash", "")
+        deterministic_hash = verdict_data.get("deterministic_hash", "")
 
         # Collect affected files
         modified = code_diff.get("modified_files", [])
@@ -310,84 +315,152 @@ class CommitManager:
         return hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
     def _apply_patch(self, patch: str, workspace_root: str) -> None:
-        """Parses and applies a unified diff patch to the sandbox filesystem."""
+        """Parses and applies a unified diff patch through a staging copy first."""
         if not patch:
             return
 
-        lines = patch.splitlines()
-        current_file = None
-        hunk_lines = []
-        is_addition = False
-        is_removal = False
+        abs_root = Path(workspace_root).resolve()
+        backups_dir = abs_root / ".bbc" / "backups"
+        backups_dir.mkdir(parents=True, exist_ok=True)
+        parsed_files = self._parse_unified_diff(patch)
 
-        idx = 0
-        while idx < len(lines):
-            line = lines[idx]
-            if line.startswith("--- "):
-                # Parse original path
-                orig_path = line[4:].strip()
-                is_addition = (orig_path == "/dev/null")
-                
-                # Read the next line which should start with "+++ "
-                idx += 1
-                if idx < len(lines) and lines[idx].startswith("+++ "):
-                    dest_path = lines[idx][4:].strip()
-                    is_removal = (dest_path == "/dev/null")
-                    
-                    # Normalize pathways (strip a/ or b/ prefixes)
-                    if not is_addition and (dest_path.startswith("a/") or dest_path.startswith("b/")):
-                        dest_path = dest_path[2:]
-                    elif is_addition and (dest_path.startswith("b/") or dest_path.startswith("a/")):
-                        dest_path = dest_path[2:]
-                        
-                    current_file = dest_path
-                    hunk_lines = []
-                idx += 1
-                continue
+        for rel_path, hunks, is_addition, is_removal in parsed_files:
+            target_path = (abs_root / rel_path).resolve()
+            try:
+                target_path.relative_to(abs_root)
+            except ValueError:
+                raise ValidationFailureException(
+                    f"Patch target '{rel_path}' breaches workspace sandbox root '{abs_root}'"
+                )
 
-            if current_file:
-                # Read hunk context until the next "--- " or end of diff
-                if line.startswith("@@"):
-                    hunk_lines = []
-                    idx += 1
-                    while idx < len(lines) and not lines[idx].startswith("--- "):
-                        hunk_lines.append(lines[idx])
-                        idx += 1
-                    
-                    abs_path = os.path.abspath(os.path.join(workspace_root, current_file))
-                    if is_addition:
-                        new_content = "\n".join([hl[1:] for hl in hunk_lines if hl.startswith("+")]) + "\n"
-                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-                        with open(abs_path, "w", encoding="utf-8") as f:
-                            f.write(new_content)
-                    elif is_removal:
-                        if os.path.exists(abs_path):
-                            os.remove(abs_path)
-                    else:
-                        # Modification
-                        if os.path.exists(abs_path):
-                            with open(abs_path, "r", encoding="utf-8") as f:
-                                file_content = f.read()
-                            
-                            orig_hunk = [hl[1:] for hl in hunk_lines if hl.startswith(" ") or hl.startswith("-")]
-                            repl_hunk = [hl[1:] for hl in hunk_lines if hl.startswith(" ") or hl.startswith("+")]
-                            
-                            orig_str = "\n".join(orig_hunk)
-                            repl_str = "\n".join(repl_hunk)
-                            
-                            if orig_str and orig_str in file_content:
-                                file_content = file_content.replace(orig_str, repl_str)
-                            else:
-                                clean_repl = [hl[1:] for hl in hunk_lines if hl.startswith("+")]
-                                file_content += "\n" + "\n".join(clean_repl) + "\n"
-                                
-                            with open(abs_path, "w", encoding="utf-8") as f:
-                                f.write(file_content)
-                        else:
-                            new_content = "\n".join([hl[1:] for hl in hunk_lines if hl.startswith("+")]) + "\n"
-                            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-                            with open(abs_path, "w", encoding="utf-8") as f:
-                                f.write(new_content)
+            backup_name = hashlib.sha256(str(target_path).encode("utf-8")).hexdigest()[:16]
+            backup_path = backups_dir / f"{backup_name}.bak"
+            if target_path.exists() and target_path.is_file():
+                shutil.copy2(target_path, backup_path)
+            else:
+                backup_path.write_text("__BBC_AOS_FILE_DID_NOT_EXIST__\n", encoding="utf-8")
+
+            try:
+                if is_removal:
+                    if target_path.exists():
+                        target_path.unlink()
                     continue
 
+                original_lines: List[str] = []
+                if not is_addition and target_path.exists():
+                    original_lines = target_path.read_text(encoding="utf-8").splitlines()
+
+                patched_lines = self._apply_hunks(original_lines, hunks)
+                self._stage_and_replace(target_path, patched_lines)
+            except Exception:
+                if backup_path.read_text(encoding="utf-8", errors="ignore") == "__BBC_AOS_FILE_DID_NOT_EXIST__\n":
+                    if target_path.exists():
+                        target_path.unlink()
+                else:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(backup_path, target_path)
+                raise
+
+    def _parse_unified_diff(self, patch: str) -> List[Tuple[str, List[List[str]], bool, bool]]:
+        """Groups unified diff hunks by destination file."""
+        lines = patch.splitlines()
+        parsed: List[Tuple[str, List[List[str]], bool, bool]] = []
+        idx = 0
+        while idx < len(lines):
+            if not lines[idx].startswith("--- "):
+                idx += 1
+                continue
+            orig_path = lines[idx][4:].strip()
+            is_addition = orig_path == "/dev/null"
             idx += 1
+            if idx >= len(lines) or not lines[idx].startswith("+++ "):
+                raise ValidationFailureException("Malformed unified diff: missing destination header")
+
+            dest_path = lines[idx][4:].strip()
+            is_removal = dest_path == "/dev/null"
+            rel_path = orig_path if is_removal else dest_path
+            if rel_path.startswith(("a/", "b/")):
+                rel_path = rel_path[2:]
+            idx += 1
+
+            hunks: List[List[str]] = []
+            while idx < len(lines) and not lines[idx].startswith("--- "):
+                if lines[idx].startswith("@@"):
+                    hunk: List[str] = [lines[idx]]
+                    idx += 1
+                    while idx < len(lines) and not lines[idx].startswith("--- "):
+                        if lines[idx].startswith("@@"):
+                            break
+                        hunk.append(lines[idx])
+                        idx += 1
+                    hunks.append(hunk)
+                    continue
+                idx += 1
+            parsed.append((rel_path, hunks, is_addition, is_removal))
+        return parsed
+
+    def _apply_hunks(self, original_lines: List[str], hunks: List[List[str]]) -> List[str]:
+        """Applies parsed hunks to line arrays with context validation."""
+        result = list(original_lines)
+        offset = 0
+        for hunk in hunks:
+            if not hunk:
+                continue
+            header = hunk[0]
+            match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", header)
+            start_index = 0
+            if match:
+                start_index = max(int(match.group(1)) - 1 + offset, 0)
+
+            old_block: List[str] = []
+            new_block: List[str] = []
+            for line in hunk[1:]:
+                if not line:
+                    old_block.append("")
+                    new_block.append("")
+                elif line.startswith(" "):
+                    old_block.append(line[1:])
+                    new_block.append(line[1:])
+                elif line.startswith("-"):
+                    old_block.append(line[1:])
+                elif line.startswith("+"):
+                    new_block.append(line[1:])
+                elif line.startswith("\\"):
+                    continue
+
+            applied_at = self._find_block(result, old_block, start_index)
+            if applied_at is None:
+                applied_at = len(result)
+                old_len = 0
+            else:
+                old_len = len(old_block)
+
+            result = result[:applied_at] + new_block + result[applied_at + old_len:]
+            offset += len(new_block) - old_len
+        return result
+
+    def _find_block(self, lines: List[str], block: List[str], preferred_index: int) -> Optional[int]:
+        """Finds an old hunk block, preferring the hunk header location."""
+        if not block:
+            return preferred_index
+        if lines[preferred_index:preferred_index + len(block)] == block:
+            return preferred_index
+        for idx in range(0, max(len(lines) - len(block) + 1, 0)):
+            if lines[idx:idx + len(block)] == block:
+                return idx
+        return None
+
+    def _stage_and_replace(self, target_path: Path, patched_lines: List[str]) -> None:
+        """Writes to a temp file in the target directory, then atomically replaces."""
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            delete=False,
+            dir=str(target_path.parent),
+            newline="\n",
+        ) as tmp:
+            tmp.write("\n".join(patched_lines))
+            tmp.write("\n")
+            tmp_path = Path(tmp.name)
+        os.replace(tmp_path, target_path)

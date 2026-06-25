@@ -2,6 +2,8 @@ import os
 import sys
 import unittest
 import json
+import hashlib
+import copy
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
@@ -17,7 +19,10 @@ from bbc_aos.agents.verification_agent import VerificationAgent
 from bbc_aos.memory.runtime import MemoryManager
 from bbc_aos.memory.working.state_manager import StateManager
 from bbc_aos.integration import (
+    SubsystemRegistry,
+    IntegrationContext,
     IntegrationAuditLog,
+    IntegrationOrchestrator,
 )
 
 # Core Graph Extraction classes to build symbol graph programmatically
@@ -81,22 +86,8 @@ class TestAgentOrchestratorPipeline(unittest.TestCase):
         
         # Register bbc_context.json
         context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
-        if os.path.exists(context_path):
-            with open(context_path, 'r', encoding='utf-8') as f:
-                self.full_context = json.load(f)
-        else:
-            # Fallback: generate a minimal mock context for CI environments
-            # where .bbc/ may not be tracked by git.
-            self.full_context = {
-                "project": "legacy_bbc",
-                "version": "0.0.0-ci-mock",
-                "files": [],
-                "symbols": [],
-                "metadata": {
-                    "generated_by": "ci-fallback",
-                    "note": "bbc_context.json not found; using mock context for test isolation."
-                }
-            }
+        with open(context_path, 'r', encoding='utf-8') as f:
+            self.full_context = json.load(f)
             
         context_record_params = {
             "memory_id": "full_context",

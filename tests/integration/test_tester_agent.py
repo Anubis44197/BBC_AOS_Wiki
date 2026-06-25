@@ -7,7 +7,7 @@ import json
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
-from bbc_aos.agents.tester_agent import TesterAgent, _DeterministicValidationPlanner
+from bbc_aos.agents.tester_agent import TesterAgent, ValidationTask, ValidationPlan, _DeterministicValidationPlanner
 from bbc_aos.integration import (
     SubsystemRegistry,
     IntegrationContext,

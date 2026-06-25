@@ -1,0 +1,1738 @@
+import os
+import json
+import argparse
+import asyncio
+import sys
+import time
+from typing import Any, Dict, Optional, List
+
+# Ensure bbc_core can be imported if run from root
+sys.path.append(os.getcwd())
+
+try:
+    import tiktoken
+    TIKTOKEN_AVAILABLE = True
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+
+from bbc_core.native_adapter import BBCNativeAdapter
+from bbc_core.bbc_scalar import BBCEncoder
+from bbc_core.config import BBCConfig
+
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    """Count tokens using TokenOptimizer's model-specific tokenizer logic"""
+    if os.environ.get("BBC_DAEMON") == "1":
+        # Fast estimation for daemon to keep sync time <100ms
+        if model == "claude":
+            return int(len(text) / 3.8)
+        elif model == "gemini":
+            return int(len(text) / 3.7)
+        elif model == "gpt-4o":
+            return int(len(text) / 3.3)
+        return int(len(text) / 3.1)
+
+    try:
+        from bbc_core.token_optimizer import TokenOptimizer
+        return TokenOptimizer().count_tokens(text, model=model)
+    except Exception:
+        # Inline fallback
+        if model == "claude":
+            return int(len(text) / 3.8)
+        elif model == "gemini":
+            return int(len(text) / 3.7)
+        return len(text) // 4
+
+def auto_calibrate_tokens(project_path: str, silent: bool = True):
+    """Automatically parses IDE usage DBs to dynamically calibrate the token divisor."""
+    try:
+        from bbc_core.ide_auto_config import IDEAutoConfigurator
+        from bbc_core.ide_parser import IDETokenParser
+
+        ide_detector = IDEAutoConfigurator()
+        active_ide = ide_detector.detect_active_ide()
+        if not active_ide:
+            return
+
+        parser = IDETokenParser(project_path)
+        success, msg, data = parser.get_real_usage(active_ide)
+
+        if success:
+            model_name = data.get('model', 'unknown')
+            total_tokens = data.get('total_tokens', 0)
+            total_chars = data.get('total_chars', 0)
+
+            if total_tokens > 0 and total_chars > 0:
+                calibrated_divisor = total_chars / total_tokens
+                ctx_path = BBCConfig.get_context_path(project_path)
+                bbc_dir = os.path.dirname(ctx_path)
+                config_path = os.path.join(bbc_dir, "config.json")
+
+                os.makedirs(bbc_dir, exist_ok=True)
+                cfg = {}
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            cfg = json.load(f)
+                    except Exception:
+                        pass
+
+                divisors = cfg.setdefault("token_divisors", {})
+                divisors[model_name] = round(calibrated_divisor, 2)
+
+                try:
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(cfg, f, indent=2)
+                except Exception:
+                    pass
+
+                if not silent:
+                    print(f"  [CALIBRATION] Token Divisor auto-updated to {calibrated_divisor:.2f} for model '{model_name}'")
+    except Exception as e:
+        if not silent:
+            print(f"  [CALIBRATION ERROR] {e}")
+
+
+class BBCCLI:
+    def __init__(self):
+        self.adapter = BBCNativeAdapter()
+
+    async def run_analysis(self, target_path, output_file, silent: bool = False, model: str = "gpt-4"):
+        target_path = os.path.abspath(target_path)
+
+        # Save context inside .bbc/ isolation directory
+        if output_file == "bbc_context.json":
+            output_file = BBCConfig.get_context_path(target_path)
+        else:
+            output_file = os.path.abspath(output_file)
+
+        if not os.path.exists(target_path):
+            print(f"Error: Path does not exist: {target_path}")
+            sys.exit(1)
+
+        if not silent:
+            print(f"[*] Starting Analysis: {target_path}")
+
+        # Auto-calibrate tokens from IDE before starting
+        auto_calibrate_tokens(target_path, silent=silent)
+
+        # Start timing
+        start_time = time.time()
+        context = await self.adapter.analyze_project(target_path, output_file=output_file, silent=silent)
+
+        # Metrics alignment with Phase 10.1 specification
+        # The adapter already produces a context dict, we just need to confirm structure
+        # context["metrics"] is expected to have files_scanned, raw_bytes, context_bytes, compression_ratio
+
+        # Ensure the output is saved to the CWD (where command is run)
+        # output_file is already relative or absolute as provided by argparse
+
+        fingerprint = context.pop("_fingerprint", None)
+        indent = None if os.environ.get("BBC_DAEMON") == "1" else 2
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(context, f, indent=indent, ensure_ascii=False, cls=BBCEncoder)
+
+        try:
+            _write_project_snapshot(target_path, output_file, fingerprint)
+        except Exception as e:
+            print(f"[WARN] Snapshot write skipped: {e}", file=sys.stderr)
+
+        try:
+            from .change_tracker import ChangeTracker
+            tracker = ChangeTracker(target_path)
+            tracker.scan_current_state(output_file)
+            tracker.save_index()
+            tracker.save_segments({
+                recipe.get("path", ""): recipe
+                for recipe in context.get("code_structure", [])
+                if isinstance(recipe, dict) and recipe.get("path")
+            })
+        except Exception as e:
+            print(f"[WARN] Incremental cache refresh skipped: {e}", file=sys.stderr)
+
+        if not silent:
+            print(f"[+] Analysis complete. Context saved to: {os.path.abspath(output_file)}")
+        m = context.get("metrics", {})
+
+        # Read context JSON
+        try:
+            context_content = json.dumps(context, ensure_ascii=False)
+        except Exception:
+            context_content = str(context)
+
+        raw_tokens = sum(recipe.get("stats", {}).get("tokens", 0) for recipe in context.get("code_structure", []))
+        if raw_tokens == 0:
+            # Fallback (slow read of all files on first index or legacy contexts)
+            raw_content = ""
+            try:
+                for root, dirs, files in os.walk(target_path):
+                    dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["node_modules", ".venv", "dist", "build", ".git", "__pycache__"]]
+                    for file in files:
+                        if file.lower().endswith(('.py', '.md', '.json', '.js', '.ts', '.html', '.css', '.log', '.sql', '.rs', '.go', '.c', '.cpp', '.h', '.hpp', '.java', '.cs', '.php', '.rb', '.swift', '.kt')):
+                            file_path = os.path.join(root, file)
+                            try:
+                                with open(file_path, 'r', encoding='utf-8') as f:
+                                    raw_content += f.read() + "\n"
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+            raw_tokens = count_tokens(raw_content, model=model) if raw_content else m.get('raw_bytes', 0) // 4
+
+        context_tokens = count_tokens(context_content, model=model)
+        saved_tokens = raw_tokens - context_tokens
+        savings_pct = (saved_tokens / raw_tokens * 100) if raw_tokens > 0 else 0
+
+        # Persist token metrics into bbc_context.json so other tools can read them
+        context.setdefault("metrics", {})
+        context["metrics"]["raw_tokens"] = raw_tokens
+        context["metrics"]["context_tokens"] = context_tokens
+        context["metrics"]["savings_pct"] = round(savings_pct, 1)
+        context["metrics"]["unified_tokens_used"] = context_tokens
+        context["metrics"]["unified_tokens_saved"] = max(0, saved_tokens)
+        context["metrics"]["unified_tokens_normal"] = raw_tokens
+        context["metrics"]["unified_savings_pct"] = round(savings_pct, 1)
+        context["metrics"]["unified_savings_confidence"] = m.get("unified_savings_confidence", 0.95)
+        context["metrics"]["unified_status"] = "IDLE"
+        context["metrics"]["unified_source"] = "analyze"
+        context["metrics"]["unified_updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(context, f, indent=2, ensure_ascii=False, cls=BBCEncoder)
+        except Exception as e:
+            print(f"[WARN] Metrics persist error: {e}", file=sys.stderr)
+
+        # Calculate time
+        bbc_time = time.time() - start_time
+
+        # Calculate symbols from code_structure
+        total_classes = 0
+        total_functions = 0
+        total_imports = 0
+        code_structure = context.get("code_structure", [])
+        for item in code_structure:
+            if isinstance(item, dict):
+                structure = item.get("structure", {})
+                total_classes += len(structure.get("classes", []))
+                total_functions += len(structure.get("functions", []))
+                total_imports += len(structure.get("imports", []))
+
+        if not silent:
+            # Visual output - NEW DESIGN
+            print(f"\n{'='*70}")
+            print(f">>> BBC ANALYSIS COMPLETE")
+            print(f"{'='*70}")
+
+            # Progress bar
+            files_scanned = m.get('files_scanned', 0)
+            print(f"[{'#'*30}] 100% ({files_scanned:,}) | {bbc_time:.2f}s")
+            print(f"{'-'*70}")
+
+            # Symbols line
+            print(f"[INFO] {total_classes:,} Classes | {total_functions:,} Functions | {total_imports:,} Imports")
+
+            # Compression line (file tokens vs context tokens - NOT real AI savings)
+            print(f"[INFO] Source:{raw_tokens:,} tokens -> Context:{context_tokens:,} tokens | Compression:{savings_pct:.1f}%")
+
+            # Status line
+            status = "SEALED" if context.get("constraint_status") in ["sealed", "verified"] else "OPEN"
+            print(f"[INFO] Status: {status} | Errors: run 'verify' to check")
+
+            print(f"{'='*70}")
+
+            # CLEAN MODE: BBC remains silent and only updates the bbc_context.json.
+
+            print(f"\n[OK] BBC Context Secured: {os.path.abspath(output_file)}")
+            print(f"[TIP] AI assistants will now see the verified logic structure.")
+            print(f"{'='*70}\n")
+        return context
+
+    async def run_analysis_incremental(self, target_path, output_file, silent: bool = False, model: str = "gpt-4"):
+        """Incremental analysis — only re-processes changed files."""
+        target_path = os.path.abspath(target_path)
+
+        if output_file == "bbc_context.json":
+            output_file = BBCConfig.get_context_path(target_path)
+        else:
+            output_file = os.path.abspath(output_file)
+
+        if not os.path.exists(target_path):
+            print(f"Error: Path does not exist: {target_path}")
+            sys.exit(1)
+
+        if not silent:
+            print(f"[*] Starting Incremental Analysis: {target_path}")
+
+        # Auto-calibrate tokens from IDE before starting
+        auto_calibrate_tokens(target_path, silent=silent)
+
+        start_time = time.time()
+        context = await self.adapter.analyze_project_incremental(
+            target_path, output_file=output_file, silent=silent
+        )
+
+        fingerprint = context.pop("_fingerprint", None)
+        indent = None if os.environ.get("BBC_DAEMON") == "1" else 2
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(context, f, indent=indent, ensure_ascii=False, cls=BBCEncoder)
+
+        try:
+            _write_project_snapshot(target_path, output_file, fingerprint)
+        except Exception as e:
+            print(f"[WARN] Snapshot write skipped: {e}", file=sys.stderr)
+
+        inc_info = context.get("incremental", {})
+        mode = inc_info.get("mode", "full")
+
+        # Token counting (same as full analysis)
+        context_content = json.dumps(context, ensure_ascii=False, default=str)
+        raw_tokens = sum(recipe.get("stats", {}).get("tokens", 0) for recipe in context.get("code_structure", []))
+        if raw_tokens == 0:
+            # Fallback (slow read of all files on first index or legacy contexts)
+            raw_content = ""
+            try:
+                for root, dirs, files in os.walk(target_path):
+                    dirs[:] = [d for d in dirs if not d.startswith('.') and d not in
+                               ["node_modules", ".venv", "dist", "build", ".git", "__pycache__"]]
+                    for file in files:
+                        if file.lower().endswith(('.py', '.md', '.json', '.js', '.ts', '.html',
+                                                  '.css', '.sql', '.rs', '.go', '.c', '.cpp',
+                                                  '.h', '.hpp', '.java', '.cs', '.php', '.rb',
+                                                  '.swift', '.kt')):
+                            fp = os.path.join(root, file)
+                            try:
+                                with open(fp, 'r', encoding='utf-8') as f:
+                                    raw_content += f.read() + "\n"
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+            raw_tokens = count_tokens(raw_content, model=model) if raw_content else context.get("metrics", {}).get("raw_bytes", 0) // 4
+
+        context_tokens = count_tokens(context_content, model=model)
+        saved_tokens = raw_tokens - context_tokens
+        savings_pct = (saved_tokens / raw_tokens * 100) if raw_tokens > 0 else 0
+
+        context.setdefault("metrics", {})
+        context["metrics"]["raw_tokens"] = raw_tokens
+        context["metrics"]["context_tokens"] = context_tokens
+        context["metrics"]["savings_pct"] = round(savings_pct, 1)
+        context["metrics"]["unified_tokens_used"] = context_tokens
+        context["metrics"]["unified_tokens_saved"] = max(0, saved_tokens)
+        context["metrics"]["unified_tokens_normal"] = raw_tokens
+        context["metrics"]["unified_savings_pct"] = round(savings_pct, 1)
+        context["metrics"]["unified_savings_confidence"] = context["metrics"].get("unified_savings_confidence", 0.95)
+        context["metrics"]["unified_status"] = "IDLE"
+        context["metrics"]["unified_source"] = "analyze_incremental"
+        context["metrics"]["unified_updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(context, f, indent=2, ensure_ascii=False, cls=BBCEncoder)
+        except Exception:
+            pass
+
+        bbc_time = time.time() - start_time
+        m = context.get("metrics", {})
+
+        if not silent:
+            print(f"\n{'='*70}")
+            print(f">>> BBC INCREMENTAL ANALYSIS COMPLETE ({mode.upper()})")
+            print(f"{'='*70}")
+            files_scanned = m.get('files_scanned', 0)
+            print(f"[{'#'*30}] 100% ({files_scanned:,}) | {bbc_time:.2f}s")
+
+            if mode == "incremental":
+                print(f"[INCR] +{inc_info.get('added', 0)} added | ~{inc_info.get('changed', 0)} changed | -{inc_info.get('removed', 0)} removed")
+                print(f"[INCR] {inc_info.get('reanalyzed', 0)} re-analyzed | {inc_info.get('cached', 0)} cached")
+            elif mode == "cached":
+                print(f"[CACHE] No changes detected — context served from cache.")
+            else:
+                print(f"[FULL] First run — full analysis performed.")
+
+            print(f"[INFO] Source:{raw_tokens:,} tokens -> Context:{context_tokens:,} tokens | Compression:{savings_pct:.1f}%")
+            print(f"{'='*70}")
+            print(f"\n[OK] BBC Context Secured: {os.path.abspath(output_file)}")
+            print(f"{'='*70}\n")
+        return context
+
+
+def _is_context_stale(project_root: str, context_path: str) -> bool:
+    project_root = os.path.abspath(project_root)
+    context_path = os.path.abspath(context_path)
+    if not os.path.isfile(context_path):
+        return True
+
+    snapshot_path = _get_project_snapshot_path(project_root)
+    if os.path.isfile(snapshot_path):
+        try:
+            with open(snapshot_path, 'r', encoding='utf-8') as f:
+                snap = json.load(f)
+            snap_ctx = os.path.abspath(snap.get("context_path", ""))
+            if snap_ctx and os.path.normcase(snap_ctx) != os.path.normcase(context_path):
+                return True
+            snap_files = snap.get("files", {})
+            if isinstance(snap_files, dict):
+                current_files = _collect_project_fingerprint(project_root)
+                if set(current_files.keys()) != set(snap_files.keys()):
+                    return True
+                for rel, meta in current_files.items():
+                    old = snap_files.get(rel)
+                    if not isinstance(old, dict):
+                        return True
+                    old_mtime = float(old.get("mtime", 0.0))
+                    new_mtime = float(meta.get("mtime", 0.0))
+                    if abs(old_mtime - new_mtime) > 0.01:
+                        return True
+                    if int(old.get("size", -1)) != int(meta.get("size", -1)):
+                        return True
+                return False
+        except Exception:
+            pass
+
+    try:
+        context_mtime = os.path.getmtime(context_path)
+    except Exception:
+        return True
+
+    newest_mtime = 0.0
+    try:
+        for root, dirs, files in os.walk(project_root):
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["node_modules", ".venv", "dist", "build", ".git", "__pycache__", ".bbc"]]
+            for file in files:
+                if file.lower().endswith((
+                    '.py', '.md', '.json', '.js', '.ts', '.html', '.css', '.sql', '.rs', '.go', '.c', '.cpp',
+                    '.h', '.hpp', '.java', '.cs', '.php', '.rb', '.swift', '.kt'
+                )):
+                    try:
+                        mtime = os.path.getmtime(os.path.join(root, file))
+                        if mtime > newest_mtime:
+                            newest_mtime = mtime
+                    except Exception:
+                        continue
+    except Exception:
+        return False
+
+    return newest_mtime > context_mtime
+
+
+def _get_project_snapshot_path(project_root: str) -> str:
+    from bbc_core.config import BBCConfig
+    bbc_dir = BBCConfig.get_bbc_dir(project_root)
+    cache_dir = os.path.join(bbc_dir, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, "project_snapshot.json")
+
+
+def _collect_project_fingerprint(project_root: str) -> Dict[str, Dict[str, Any]]:
+    project_root = os.path.abspath(project_root)
+    fingerprint: Dict[str, Dict[str, Any]] = {}
+
+    for root, dirs, files in os.walk(project_root):
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.') and d not in [
+                "node_modules", ".venv", "dist", "build", ".git", "__pycache__", ".bbc"
+            ]
+        ]
+
+        for file in files:
+            if not file.lower().endswith((
+                '.py', '.md', '.json', '.js', '.ts', '.html', '.css', '.sql', '.rs', '.go', '.c', '.cpp',
+                '.h', '.hpp', '.java', '.cs', '.php', '.rb', '.swift', '.kt'
+            )):
+                continue
+            abs_path = os.path.join(root, file)
+            try:
+                st = os.stat(abs_path)
+                rel_path = os.path.relpath(abs_path, project_root)
+                fingerprint[rel_path] = {"mtime": float(st.st_mtime), "size": int(st.st_size)}
+            except Exception:
+                continue
+
+    return fingerprint
+
+
+def _write_project_snapshot(project_root: str, context_path: str, fingerprint: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
+    project_root = os.path.abspath(project_root)
+    context_path = os.path.abspath(context_path)
+    snapshot_path = _get_project_snapshot_path(project_root)
+    payload = {
+        "project_root": project_root,
+        "context_path": context_path,
+        "created_at": time.time(),
+        "files": fingerprint if fingerprint is not None else _collect_project_fingerprint(project_root),
+    }
+    with open(snapshot_path, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False, cls=BBCEncoder)
+    return snapshot_path
+
+
+def audit_bbc_traces(project_path: str) -> Dict[str, Any]:
+    project_root = os.path.abspath(project_path)
+    report = {
+        "project_root": project_root,
+        "exists": os.path.isdir(project_root),
+        "paths": {},
+    }
+
+    # v8.6 Core artifacts (must exist for proper operation)
+    check_paths = {
+        ".bbc": os.path.join(project_root, ".bbc"),
+        ".bbc/bbc_context.json": BBCConfig.get_context_path(project_root),
+        ".bbc/bbc_rules.md": os.path.join(project_root, ".bbc", "bbc_rules.md"),
+        ".bbc/bbc_context.md": os.path.join(project_root, ".bbc", "bbc_context.md"),
+        ".bbc/BBC_INSTRUCTIONS.md": os.path.join(project_root, ".bbc", "BBC_INSTRUCTIONS.md"),
+        ".bbc/manifest/injected_files.json": os.path.join(project_root, ".bbc", "manifest", "injected_files.json"),
+        ".bbc/cache/project_snapshot.json": os.path.join(project_root, ".bbc", "cache", "project_snapshot.json"),
+    }
+
+    # Legacy / informational paths (v8.6 no longer generates these at root)
+    legacy_paths = {
+        "[Legacy] ai-context.json": os.path.join(project_root, "ai-context.json"),
+        "[Legacy] BBC_INSTRUCTIONS.md (root)": os.path.join(project_root, "BBC_INSTRUCTIONS.md"),
+        "[Legacy] BBC_CONTEXT.md": os.path.join(project_root, "BBC_CONTEXT.md"),
+    }
+
+    for k, p in check_paths.items():
+        report["paths"][k] = {
+            "path": p,
+            "exists": os.path.exists(p),
+            "is_dir": os.path.isdir(p),
+            "category": "core",
+        }
+
+    for k, p in legacy_paths.items():
+        report["paths"][k] = {
+            "path": p,
+            "exists": os.path.exists(p),
+            "is_dir": os.path.isdir(p),
+            "category": "legacy",
+        }
+
+    return report
+
+
+
+def clean_system():
+    """
+    System cleanup function.
+    Removes temporary files, caches, and old logs.
+    """
+    import shutil
+    import glob
+
+    print("[CLEAN] BBC System Cleanup starting...")
+    cleaned = 0
+
+    # 1. Remove __pycache__ directories
+    for pycache in glob.glob("**/__pycache__", recursive=True):
+        try:
+            shutil.rmtree(pycache)
+            cleaned += 1
+            print(f"  [OK] Removed: {pycache}")
+        except Exception as e:
+            print(f"  [ERR] Could not remove {pycache}: {e}")
+
+    # 2. Remove .pyc files
+    for pyc in glob.glob("**/*.pyc", recursive=True):
+        try:
+            os.remove(pyc)
+            cleaned += 1
+            print(f"  [OK] Removed: {pyc}")
+        except Exception:
+            pass
+
+    # 3. Remove old BBC log files (older than 7 days) - ONLY from .bbc/logs/
+    import time
+    from bbc_core.config import BBCConfig
+    bbc_log_dir = os.path.join(BBCConfig.get_bbc_dir(), 'logs')
+    current_time = time.time()
+    if os.path.isdir(bbc_log_dir):
+        for log in glob.glob(os.path.join(bbc_log_dir, '*.log')):
+            try:
+                file_time = os.path.getmtime(log)
+                if (current_time - file_time) > (7 * 24 * 60 * 60):  # 7 days
+                    os.remove(log)
+                    cleaned += 1
+                    print(f"  [OK] Removed old log: {log}")
+            except Exception:
+                pass
+
+    print(f"\n[CLEAN] Cleanup complete. {cleaned} items removed.")
+    return cleaned
+
+
+def purge_bbc(project_path: str = ".", silent: bool = False):
+    """
+    Complete BBC removal - removes ALL BBC traces from a project.
+    Use when user wants to completely stop using BBC.
+    After purge, no BBC file or directory remains in the project.
+    """
+    import shutil
+    from bbc_core.agent_adapter import cleanup_injected_configs
+
+    project_root = os.path.abspath(project_path)
+    removed = []
+
+    if not silent:
+        print(f"[PURGE] BBC Complete Removal")
+        print(f"[PURGE] Target: {project_root}")
+        print(f"{'-'*60}")
+
+    # 1. Remove all injected AI config files
+    injected = cleanup_injected_configs(project_root, dry_run=False)
+    for f in injected:
+        removed.append(f)
+        if not silent:
+            print(f"  [OK] {os.path.relpath(f, project_root)}")
+
+    # 2. Remove BBC output files from project root
+    bbc_root_files = [
+        "ai-context.json",
+        "bbc_rules.md",
+        "BBC_CONTEXT.md",
+        "BBC_INSTRUCTIONS.md",
+        "BBC_README.md",
+    ]
+    for fname in bbc_root_files:
+        fpath = os.path.join(project_root, fname)
+        if os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+                removed.append(fpath)
+                if not silent:
+                    print(f"  [OK] {fname}")
+            except Exception as e:
+                if not silent:
+                    print(f"  [ERR] {fname}: {e}")
+
+    # 3. Remove .bbc/ isolation directory (logs, indices, cache, weights, daemon)
+    bbc_dir = os.path.join(project_root, ".bbc")
+    if os.path.isdir(bbc_dir):
+        try:
+            shutil.rmtree(bbc_dir)
+            removed.append(bbc_dir)
+            if not silent:
+                print(f"  [OK] .bbc/ (entire directory)")
+        except Exception as e:
+            if not silent:
+                print(f"  [ERR] .bbc/: {e}")
+
+    # 4. Remove legacy logs/ directory if it exists and is empty or BBC-only
+    legacy_logs = os.path.join(project_root, "logs")
+    if os.path.isdir(legacy_logs):
+        try:
+            # Only remove if all files inside are BBC-related
+            bbc_log_names = {"state_manager.log", "bbc_math.log", "realtime_tokens.log", "chaos_test.log"}
+            contents = set(os.listdir(legacy_logs))
+            if contents.issubset(bbc_log_names) or len(contents) == 0:
+                shutil.rmtree(legacy_logs)
+                removed.append(legacy_logs)
+                if not silent:
+                    print(f"  [OK] logs/ (legacy BBC logs)")
+        except Exception as e:
+            if not silent:
+                print(f"  [ERR] logs/: {e}")
+
+    # 5. Clean up .gitignore entries
+    gitignore_path = os.path.join(project_root, ".gitignore")
+    if os.path.isfile(gitignore_path):
+        try:
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            if "# --- BBC Isolation Shield (No-Trace) ---" in content:
+                parts = content.split("# --- BBC Isolation Shield (No-Trace) ---")
+                cleaned_content = parts[0].rstrip() + "\n"
+                with open(gitignore_path, "w", encoding="utf-8") as f:
+                    f.write(cleaned_content)
+                if not silent:
+                    print(f"  [OK] Removed BBC entries from .gitignore")
+            elif "# BBC Isolation Shield" in content:
+                lines = content.splitlines()
+                is_pure_bbc = all(line.startswith("#") or any(k in line for k in [".bbc", "ai-context", "bbc_context", "bbc_rules", "BBC_CONTEXT", "BBC_INSTRUCTIONS", "BBC_README", ".antigravity", ".cursorrules", ".clinerules"]) for line in lines if line.strip())
+                if is_pure_bbc:
+                    os.remove(gitignore_path)
+                    if not silent:
+                        print(f"  [OK] Removed empty .gitignore")
+        except Exception as e:
+            if not silent:
+                print(f"  [WARN] Failed to clean .gitignore: {e}")
+
+    if not silent:
+        print(f"{'-'*60}")
+        print(f"[PURGE] Complete. {len(removed)} items removed.")
+        print(f"[PURGE] BBC has been fully removed from this project.")
+    return removed
+
+
+def _ensure_init(project_root: str = "."):
+    """
+    System initialization check.
+    Ensures .bbc/ isolation directory and subdirectories exist.
+    All BBC output is contained within .bbc/ to avoid polluting the workspace.
+    """
+    from bbc_core.config import BBCConfig
+    bbc_dir = BBCConfig.get_bbc_dir(project_root)
+
+    required_subdirs = [
+        os.path.join(bbc_dir, "indices"),
+        os.path.join(bbc_dir, "logs"),
+        os.path.join(bbc_dir, "cache"),
+    ]
+
+    for d in required_subdirs:
+        os.makedirs(d, exist_ok=True)
+
+
+def main():
+    import sys
+    if sys.platform.startswith('win') and hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except Exception:
+            pass
+
+    parser = argparse.ArgumentParser(description="BBC Core CLI - Direct Integration Bridge", prog="bbc")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # analyze command
+    analyze_parser = subparsers.add_parser("analyze")
+    analyze_parser.add_argument("path", help="Project path to analyze")
+    analyze_parser.add_argument("--out", default="bbc_context.json", help="Output JSON file name")
+    analyze_parser.add_argument("--silent", action="store_true", help="Minimal output")
+    analyze_parser.add_argument("--incremental", action="store_true",
+                               help="Only re-analyze files changed since last run")
+    analyze_parser.add_argument("--model", default="gpt-4", choices=["gpt-4", "gpt-4o", "claude", "gemini"],
+                               help="Target LLM model for token metrics (default: gpt-4)")
+
+    # migrate command
+    migrate_parser = subparsers.add_parser("migrate")
+    migrate_parser.add_argument("recipe", help="Path to the existing recipe JSON")
+    migrate_parser.add_argument("--target", default="Rust", help="Target language (e.g. Rust, Go)")
+
+    # verify command
+    verify_parser = subparsers.add_parser("verify")
+    verify_parser.add_argument("recipe", help="Path to the recipe JSON (for root path context)")
+    verify_parser.add_argument("--changed-only", action="store_true",
+                               help="Only verify files that changed since last seal")
+
+    # compile command - Task-Aware Context Compiler
+    compile_parser = subparsers.add_parser("compile", help="Compile task-aware context for LLM (bugfix/feature/refactor/review)")
+    compile_parser.add_argument("--task", required=True,
+                                choices=["bugfix", "feature", "refactor", "review"],
+                                help="Task type to compile context for")
+    compile_parser.add_argument("--file", default=None,
+                                help="Target file being worked on (relative path)")
+    compile_parser.add_argument("--symbols", nargs="*", default=None,
+                                help="Target symbol names (optional)")
+    compile_parser.add_argument("--context", default=None,
+                                help="Path to bbc_context.json (default: auto-detect)")
+    compile_parser.add_argument("--out", default=None,
+                                help="Output path for compiled context (default: .bbc/compiled_<task>.json)")
+    compile_parser.add_argument("--json", action="store_true",
+                                help="Output raw JSON to stdout")
+
+    # pack command - Semantic Packer
+    pack_parser = subparsers.add_parser("pack", help="Semantically compress context for minimal token usage")
+    pack_parser.add_argument("--context", default=None,
+                             help="Path to bbc_context.json or compiled context (default: auto-detect)")
+    pack_parser.add_argument("--aggressive", action="store_true",
+                             help="Aggressive mode: deeper compression, removes dep graph")
+    pack_parser.add_argument("--out", default=None,
+                             help="Output path (default: .bbc/packed_context.json)")
+    pack_parser.add_argument("--json", action="store_true",
+                             help="Output raw JSON to stdout")
+
+    # telemetry command - Feedback Dashboard
+    telemetry_parser = subparsers.add_parser("telemetry", help="Show BBC performance telemetry dashboard")
+    telemetry_parser.add_argument("path", nargs="?", default=".", help="Project path")
+    telemetry_parser.add_argument("--json", action="store_true", help="Output raw JSON")
+    telemetry_parser.add_argument("--limit", type=int, default=10, help="Number of recent commands to show")
+
+    # doctor command
+    doctor_parser = subparsers.add_parser("doctor", help="Check BBC environment, context, IDE signals, and Git hygiene")
+    doctor_parser.add_argument("path", nargs="?", default=".", help="Project path")
+    doctor_parser.add_argument("--json", action="store_true", help="Output JSON only")
+
+    # publish-check command
+    publish_parser = subparsers.add_parser("publish-check", help="Check target project for BBC traces before GitHub publish")
+    publish_parser.add_argument("path", nargs="?", default=".", help="Project path")
+    publish_parser.add_argument("--json", action="store_true", help="Output JSON only")
+
+    # clean command
+    clean_parser = subparsers.add_parser("clean", help="Clean BBC runtime logs/cache with retention limits")
+    clean_parser.add_argument("path", nargs="?", default=".", help="Project path")
+    clean_parser.add_argument("--older-than-days", type=int, default=14, help="Remove runtime files older than N days")
+    clean_parser.add_argument("--max-mb", type=int, default=50, help="Keep .bbc runtime footprint below this size")
+    clean_parser.add_argument("--dry-run", action="store_true", help="Show what would be removed")
+    clean_parser.add_argument("--json", action="store_true", help="Output JSON only")
+
+    # purge command - Complete BBC removal
+    purge_parser = subparsers.add_parser("purge", help="Completely remove ALL BBC traces from project")
+    purge_parser.add_argument("path", nargs="?", default=".",
+                              help="Project path to purge (default: current directory)")
+    purge_parser.add_argument("--force", action="store_true",
+                              help="Skip confirmation prompt")
+    purge_parser.add_argument("--silent", action="store_true", help="Minimal output")
+
+    # agent command - Generate IDE-specific contexts
+    agent_parser = subparsers.add_parser("agent", help="Generate IDE-specific agent contexts")
+    agent_parser.add_argument("recipe", nargs="?", default="bbc_context.json",
+                             help="Path to BBC context JSON (default: bbc_context.json)")
+    agent_parser.add_argument("--target", choices=["copilot", "cursor", "gemini", "kilo", "vscode", "all"],
+                             default="all", help="Target agent format")
+    agent_parser.add_argument("--out", default=".", help="Output directory for generated contexts")
+
+    # inject command - Universal AI Context Injection
+    inject_parser = subparsers.add_parser("inject", help="Inject BBC context to ALL AI assistants (native formats)")
+    inject_parser.add_argument("path", nargs="?", default=".",
+                              help="Project path to inject (default: current directory)")
+    inject_parser.add_argument("--recipe", default=None,
+                              help="Path to BBC recipe JSON (default: auto-detect in project)")
+    inject_parser.add_argument("--silent", action="store_true", help="Minimal output")
+    inject_parser.add_argument("--auto-analyze", action="store_true",
+                              help="If context is stale, re-run analyze automatically before inject")
+    inject_parser.add_argument("--allow-stale", action="store_true",
+                              help="Proceed with inject even if context is detected as stale")
+    inject_parser.add_argument("--force", action="store_true",
+                              help="Force full re-injection and ignore checks")
+    inject_parser.add_argument("--no-optimize", action="store_true",
+                              help="Disable agent-specific optimized context injection")
+    inject_parser.add_argument("--model", default="gpt-4", choices=["gpt-4", "gpt-4o", "claude", "gemini"],
+                              help="Target LLM model for token metrics (default: gpt-4)")
+
+    # bootstrap command - Analyze + Inject in one step
+    bootstrap_parser = subparsers.add_parser("bootstrap", help="Analyze project and inject IDE/agent instructions (one-step)")
+    bootstrap_parser.add_argument("path", nargs="?", default=".",
+                                 help="Project path (default: current directory)")
+    bootstrap_parser.add_argument("--out", default="bbc_context.json",
+                                 help="Context output file name (default: bbc_context.json in project root)")
+    bootstrap_parser.add_argument("--model", default="gpt-4", choices=["gpt-4", "gpt-4o", "claude", "gemini"],
+                                 help="Target LLM model for token metrics (default: gpt-4)")
+    bootstrap_parser.add_argument("--yes", action="store_true",
+                                 help="Skip confirmation prompt")
+    bootstrap_parser.add_argument("--silent", action="store_true",
+                                 help="Minimal output")
+    bootstrap_parser.add_argument("--no-optimize", action="store_true",
+                                 help="Disable agent-specific optimized context injection")
+
+    # audit command - Report BBC traces in a project
+    audit_parser = subparsers.add_parser("audit", help="Audit BBC traces (context/injected files/.bbc) in a project")
+    audit_parser.add_argument("path", nargs="?", default=".", help="Project path to audit (default: current directory)")
+    audit_parser.add_argument("--json", action="store_true", help="Output JSON only")
+
+    # cleanup command - Remove injected AI configs
+    cleanup_parser = subparsers.add_parser("cleanup", help="Remove BBC-injected AI config files from project")
+    cleanup_parser.add_argument("path", nargs="?", default=".",
+                               help="Project path to cleanup (default: current directory)")
+    cleanup_parser.add_argument("--force", action="store_true",
+                               help="Skip confirmation prompt")
+    cleanup_parser.add_argument("--silent", action="store_true", help="Minimal output")
+
+    # adaptive command - BBC Adaptive Mode
+    adaptive_parser = subparsers.add_parser("adaptive", help="BBC Adaptive Mode - Hallucination-resistant query")
+    adaptive_parser.add_argument("recipe", nargs="?", default="bbc_context.json",
+                                help="Path to BBC context JSON (default: bbc_context.json)")
+    adaptive_parser.add_argument("--primary", required=True,
+                                help="Primary symbol to query (e.g., HMPUMathChat)")
+    adaptive_parser.add_argument("--direct", default="",
+                                help="Direct context/question")
+    adaptive_parser.add_argument("--ratio", type=float, default=0.95,
+                                help="Context match ratio (0.0-1.0, default: 0.95)")
+    adaptive_parser.add_argument("--json", action="store_true",
+                                help="Output raw JSON only")
+
+    # impact command - Semantic Impact Analysis
+    impact_parser = subparsers.add_parser("impact", help="Analyze semantic impact of a file change (BBC Mathematics)")
+    impact_parser.add_argument("file", help="Path to the changed file")
+    impact_parser.add_argument("--symbols", nargs="*", default=None,
+                               help="Changed symbol names (optional)")
+    impact_parser.add_argument("--op", choices=["Refactor", "Patch", "Feature"], default="Patch",
+                               help="Operation type (default: Patch)")
+    impact_parser.add_argument("--context", default=None,
+                               help="Path to bbc_context.json (default: auto-detect)")
+    impact_parser.add_argument("--json", action="store_true",
+                               help="Output raw JSON only")
+
+    # patch command - Auto Patcher
+    patch_parser = subparsers.add_parser("patch", help="Detect and fix code issues automatically (BBC Mathematics)")
+    patch_parser.add_argument("path", nargs="?", default=".",
+                              help="Project root path (default: current directory)")
+    patch_parser.add_argument("--apply", action="store_true",
+                              help="Apply safe patches (default: dry-run only)")
+    patch_parser.add_argument("--context", default=None,
+                              help="Path to bbc_context.json (default: auto-detect)")
+    patch_parser.add_argument("--json", action="store_true",
+                              help="Output raw JSON only")
+
+    # check command - Post-generation Hallucination Guard
+    check_parser = subparsers.add_parser("check", help="Check AI-generated code against BBC context for hallucinations")
+    check_parser.add_argument("file", help="Path to file containing AI-generated code to check")
+    check_parser.add_argument("--context", default=None,
+                             help="Path to bbc_context.json (default: auto-detect in project)")
+    check_parser.add_argument("--strict", action="store_true", default=True,
+                             help="Strict mode: flag all unknown symbols (default)")
+    check_parser.add_argument("--relaxed", action="store_true",
+                             help="Relaxed mode: only flag speculative language")
+    check_parser.add_argument("--json", action="store_true",
+                             help="Output raw JSON only")
+
+    # remember command - Episodic Memory Save
+    remember_parser = subparsers.add_parser("remember", help="Save user preference or decision to episodic memory")
+    remember_parser.add_argument("topic", help="Topic or key (e.g. 'UI', 'Database')")
+    remember_parser.add_argument("content", help="Content to remember")
+    remember_parser.add_argument("--path", default=".", help="Project root path (default: current directory)")
+    remember_parser.add_argument("--force", action="store_true", help="Force overwrite if a memory with this topic already exists")
+
+    # recall command - Episodic Memory Retrieve
+    recall_parser = subparsers.add_parser("recall", help="Recall user preference or decision from episodic memory")
+    recall_parser.add_argument("query", help="Query string to search for")
+    recall_parser.add_argument("--path", default=".", help="Project root path (default: current directory)")
+
+    # usage command - Real Token Usage Parsing
+    usage_parser = subparsers.add_parser("usage", help="Show IDE token usage when available, otherwise fallback status")
+    usage_parser.add_argument("--path", default=".", help="Project root path")
+
+
+    args = parser.parse_args()
+
+    # Initialize system only for commands that may write BBC runtime files.
+    # Read-only hygiene checks must not create .bbc traces in target projects.
+    if args.command not in {"doctor", "publish-check", "clean"}:
+        _ensure_init(getattr(args, 'path', '.'))
+
+    if args.command == "analyze":
+        cli = BBCCLI()
+        if getattr(args, "incremental", False):
+            asyncio.run(cli.run_analysis_incremental(args.path, args.out, silent=getattr(args, "silent", False), model=getattr(args, "model", "gpt-4")))
+        else:
+            asyncio.run(cli.run_analysis(args.path, args.out, silent=getattr(args, "silent", False), model=getattr(args, "model", "gpt-4")))
+    elif args.command == "migrate":
+        from bbc_core.migrator_engine import BBCMigratorEngine
+        engine = BBCMigratorEngine(args.recipe)
+        engine.plan_migration(args.target)
+    elif args.command == "verify":
+        from bbc_core.verifier import BBCVerifier
+        recipe_path = args.recipe
+        if os.path.isdir(recipe_path):
+            candidates = [
+                os.path.join(recipe_path, ".bbc", "bbc_context.json"),
+                os.path.join(recipe_path, "bbc_context.json")
+            ]
+            for candidate in candidates:
+                if os.path.exists(candidate):
+                    recipe_path = candidate
+                    break
+        verifier = BBCVerifier(recipe_path)
+        if getattr(args, "changed_only", False):
+            report = verifier.verify_changed_only()
+        else:
+            report = verifier.verify_full()
+
+        aura = report["aura_field"]
+        freshness = report["freshness"]
+        mismatch = report["symbol_mismatch"]
+
+        changed_only_info = report.get("changed_only")
+        report_title = "BBC CHANGED-ONLY VERIFICATION REPORT" if changed_only_info else "BBC FULL VERIFICATION REPORT"
+        print(f"\n{'='*60}")
+        print(f" {report['verdict_icon']} {report_title}")
+        print(f"{'='*60}")
+        if changed_only_info:
+            print(f"[SCOPE] {changed_only_info.get('files_checked', 0)} file(s) checked (changed-only mode)")
+
+        # Syntax
+        if report["syntax_error_count"] > 0:
+            print(f"\n[SYNTAX] {report['syntax_error_count']} error(s):")
+            for e in report["syntax_errors"][:10]:
+                print(f"  - [{e['type']}] {e['file']}:{e.get('line', '?')} -> {e.get('msg')}")
+        else:
+            print(f"\n[SYNTAX] No errors found.")
+
+        # Freshness
+        if freshness["context_fresh"]:
+            print(f"[FRESH]  Context is FRESH ({freshness.get('total_files', 0)} files verified)")
+        else:
+            print(f"[STALE]  {freshness['stale_count']}/{freshness.get('total_files', 0)} files changed -> {freshness['recommendation']}")
+            for sf in freshness["stale_files"][:5]:
+                print(f"  - {sf}")
+            if freshness.get("missing_count", 0) > 0:
+                print(f"  ({freshness['missing_count']} file(s) missing from disk)")
+
+        # Symbol Mismatch
+        if mismatch["mismatch_count"] == 0:
+            print(f"[MATCH]  All symbols consistent ({mismatch.get('total_context_symbols', 0)} symbols)")
+        else:
+            print(f"[DRIFT]  {mismatch['mismatch_count']} file(s) with symbol drift (ratio: {mismatch['mismatch_ratio']})")
+            for mf in mismatch["mismatch_files"][:5]:
+                added_str = f"+{mf['added_count']}" if mf['added_count'] else ""
+                removed_str = f"-{mf['removed_count']}" if mf['removed_count'] else ""
+                print(f"  - {mf['file']} [{added_str}{removed_str}]")
+
+        # Aura Field (BBC Mathematics — BBCScalar native)
+        print(f"\n{'─'*60}")
+        print(f" AURA FIELD (BBC Mathematics — State-Aware)")
+        print(f"{'─'*60}")
+        try:
+            s_info = aura['S_structure']
+            c_info = aura['C_chaos']
+            p_info = aura['P_pulse']
+            a_info = aura['aura_score']
+            conf_info = aura['confidence']
+            print(f"  S (Structure):  {s_info['value']}  [{s_info['state']}]  origin={s_info['origin']}")
+            print(f"  C (Chaos):      {c_info['value']}  [{c_info['state']}]  origin={c_info['origin']}")
+            print(f"  P (Pulse):      {p_info['value']}  [{p_info['state']}]  origin={p_info['origin']}")
+            print(f"  Aura Score:     {a_info['value']}  [{a_info['state']}]  origin={a_info['origin']}")
+            print(f"  Field κ:        {aura.get('field_stability', 'N/A')}")
+            print(f"  Confidence:     {conf_info['value']}  [{conf_info['state']}]")
+            print(f"  Governor:       {'HMPU' if aura.get('governor_used') else 'Fallback'}")
+        except KeyError:
+            # Minimal aura dict (e.g. changed-only with no changes)
+            a_info = aura.get('aura_score', {})
+            conf_info = aura.get('confidence', {})
+            print(f"  Aura Score:     {a_info.get('value', 'N/A')}  [{a_info.get('state', 'N/A')}]")
+            print(f"  Confidence:     {conf_info.get('value', 'N/A')}  [{conf_info.get('state', 'N/A')}]")
+        print(f"\n  VERDICT: {report['verdict_icon']} {report['verdict']}")
+        print(f"{'='*60}")
+    elif args.command == "telemetry":
+        from bbc_core.telemetry import get_telemetry
+        # Resolve log path relative to the provided path argument
+        project_path = getattr(args, "path", ".")
+        log_path = os.path.join(project_path, ".bbc", "logs", "telemetry.jsonl")
+        tele = get_telemetry(log_path=log_path)
+        summary = tele.generate_summary()
+
+        if getattr(args, "json", False):
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(f"\n{'='*60}")
+            print(f" 📊 BBC FEEDBACK TELEMETRY DASHBOARD")
+            print(f"{'='*60}")
+            print(f"  Total Commands:    {summary['total_commands']}")
+            print(f"  Total Duration:    {summary['total_duration_sec']}s")
+            print(f"  Total Tokens Saved:{summary['total_tokens_saved']:,}")
+            print(f"  Files Processed:   {summary.get('total_files_processed', 0):,}")
+            print(f"  Success Rate:      {summary.get('success_rate', 0)}%")
+
+            cmd_stats = summary.get("commands", {})
+            if cmd_stats:
+                print(f"\n{'─'*60}")
+                print(f"  Command Breakdown:")
+                for cmd, stats in sorted(cmd_stats.items(), key=lambda x: x[1]["count"], reverse=True):
+                    print(f"    {cmd:20s}  {stats['count']:3d}x  avg {stats['avg_sec']:.2f}s  saved {stats['tokens_saved']:,} tokens")
+
+            recent = summary.get("recent", [])
+            limit = getattr(args, "limit", 10)
+            if recent:
+                print(f"\n{'─'*60}")
+                print(f"  Recent Commands (last {min(limit, len(recent))}):")
+                for r in recent[-limit:]:
+                    icon = "✓" if r.get("success", True) else "✗"
+                    print(f"    {icon} {r['ts']}  {r['command']:15s}  {r['duration']:.2f}s  saved {r['tokens_saved']:,}")
+
+            print(f"{'='*60}\n")
+
+    elif args.command == "pack":
+        ctx_path = getattr(args, "context", None)
+        if not ctx_path:
+            for candidate in [".bbc/bbc_context.json", "bbc_context.json"]:
+                if os.path.exists(candidate):
+                    ctx_path = candidate
+                    break
+        if not ctx_path or not os.path.exists(ctx_path):
+            print("[ERROR] BBC context not found. Run 'bbc analyze' first.")
+            sys.exit(1)
+
+        with open(ctx_path, "r", encoding="utf-8") as f:
+            context = json.load(f)
+
+        from bbc_core.semantic_packer import SemanticPacker
+        packer = SemanticPacker(aggressive=getattr(args, "aggressive", False))
+        packed = packer.pack(context)
+
+        if getattr(args, "json", False):
+            print(json.dumps(packed, indent=2, ensure_ascii=False, default=str))
+        else:
+            m = packed.get("metrics", {})
+            mode = m.get("packing_mode", "safe")
+            before = m.get("packing_before_bytes", 0)
+            after = m.get("packing_after_bytes", 0)
+            pct = m.get("packing_savings_pct", 0)
+            collapsed = m.get("packing_collapsed_files", 0)
+            aliases = packed.get("_path_aliases", {})
+            shared = packed.get("_shared_imports", {})
+
+            print(f"\n{'='*60}")
+            print(f" 📦 BBC SEMANTIC PACKING COMPLETE")
+            print(f"{'='*60}")
+            print(f"  Mode:       {mode.upper()}")
+            print(f"  Before:     {before:,} bytes")
+            print(f"  After:      {after:,} bytes")
+            print(f"  Saved:      {before - after:,} bytes ({pct}%)")
+            print(f"{'─'*60}")
+            print(f"  Collapsed:  {collapsed} low-value file(s)")
+            print(f"  Shared imports: {len(shared)} deduplicated")
+            print(f"  Path aliases:   {len(aliases)} prefix(es)")
+            if aliases:
+                for alias, prefix in aliases.items():
+                    print(f"    {alias} → {prefix}")
+            print(f"{'─'*60}")
+
+            out_path = getattr(args, "out", None)
+            saved_path = packer.save_packed(packed, out_path)
+            print(f"  [OK] Saved to: {saved_path}")
+            print(f"{'='*60}\n")
+
+    elif args.command == "compile":
+        # Auto-detect context
+        ctx_path = getattr(args, "context", None)
+        if not ctx_path:
+            for candidate in [".bbc/bbc_context.json", "bbc_context.json"]:
+                if os.path.exists(candidate):
+                    ctx_path = candidate
+                    break
+        if not ctx_path or not os.path.exists(ctx_path):
+            print("[ERROR] BBC context not found. Run 'bbc analyze' first.")
+            sys.exit(1)
+
+        from bbc_core.context_compiler import TaskContextCompiler
+        compiler = TaskContextCompiler(ctx_path)
+        compiled = compiler.compile(
+            task=args.task,
+            target_file=getattr(args, "file", None),
+            target_symbols=getattr(args, "symbols", None),
+        )
+
+        if getattr(args, "json", False):
+            print(json.dumps(compiled, indent=2, ensure_ascii=False, default=str))
+        else:
+            tc = compiled.get("task_context", {})
+            m = compiled.get("metrics", {})
+            print(f"\n{'='*60}")
+            print(f" 🎯 BBC TASK-AWARE CONTEXT COMPILED")
+            print(f"{'='*60}")
+            print(f"  Task:       {tc.get('task_type', '?')} — {tc.get('task_profile', '')}")
+            if tc.get("target_file"):
+                print(f"  Target:     {tc['target_file']}")
+            if tc.get("target_symbols"):
+                print(f"  Symbols:    {', '.join(tc['target_symbols'])}")
+            print(f"  Files:      {tc.get('files_included', 0)}/{tc.get('files_total', 0)} ({tc.get('file_reduction_pct', 0)}% reduction)")
+            print(f"  Lines:      {m.get('code_lines', 0):,} code lines included")
+            print(f"{'─'*60}")
+            print(f"  Full ctx:   ~{m.get('full_context_tokens_est', 0):,} tokens")
+            print(f"  Compiled:   ~{m.get('compiled_tokens_est', 0):,} tokens")
+            print(f"  Savings:    {m.get('task_savings_pct', 0)}% token reduction")
+            print(f"{'─'*60}")
+
+            # Show included files
+            cs = compiled.get("code_structure", [])
+            print(f"\n  Included files (by relevance):")
+            for recipe in cs[:15]:
+                score = recipe.get("_relevance_score", 0)
+                bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
+                print(f"    [{bar}] {score:.2f}  {recipe.get('path', '?')}")
+            if len(cs) > 15:
+                print(f"    ... and {len(cs) - 15} more")
+
+            # Save
+            out_path = getattr(args, "out", None)
+            saved = compiler.save_compiled(compiled, out_path)
+            print(f"\n  [OK] Saved to: {saved}")
+            print(f"{'='*60}\n")
+
+    elif args.command == "impact":
+        # Context dosyasını bul
+        ctx_path = args.context
+        if not ctx_path:
+            for candidate in [".bbc/bbc_context.json", "bbc_context.json"]:
+                if os.path.exists(candidate):
+                    ctx_path = candidate
+                    break
+        if not ctx_path or not os.path.exists(ctx_path):
+            print("[ERROR] BBC context not found. Run 'bbc analyze' first.")
+            sys.exit(1)
+
+        from bbc_core.impact_analyzer import ImpactAnalyzer
+        analyzer = ImpactAnalyzer(ctx_path)
+        report = analyzer.analyze_impact(args.file, changed_symbols=args.symbols, op_type=args.op)
+
+        if getattr(args, "json", False):
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+        else:
+            aura = report["aura_impact"]
+            print(f"\n{'='*60}")
+            print(f" {report['verdict_icon']} BBC SEMANTIC IMPACT ANALYSIS")
+            print(f"{'='*60}")
+            print(f"  Changed:   {report['changed_file']}")
+            if report['changed_symbols']:
+                print(f"  Symbols:   {', '.join(report['changed_symbols'])}")
+            print(f"  Operation: {report['op_type']}")
+
+            # Direct dependents
+            print(f"\n[DIRECT]  {report['direct_count']} file(s) directly affected:")
+            for dep in report["direct_dependents"][:10]:
+                print(f"  → {dep}")
+
+            # Indirect dependents
+            if report["indirect_count"] > 0:
+                print(f"[INDIRECT] {report['indirect_count']} file(s) indirectly affected:")
+                for dep in report["indirect_dependents"][:10]:
+                    print(f"  ⤳ {dep}")
+
+            # Symbol impacts
+            if report["symbol_impacts"]:
+                print(f"\n[SYMBOLS] Symbol-level impacts:")
+                for si in report["symbol_impacts"][:5]:
+                    print(f"  - {si['symbol']}: {si['affected_count']} file(s)")
+
+            # Semantic similar
+            if report["semantic_similar"]:
+                print(f"\n[FOCUS]   Semantically similar files (cos θ):")
+                for ss in report["semantic_similar"][:5]:
+                    sim = ss["similarity"]
+                    print(f"  - {ss['file']}  sim={sim['value']} [{sim['state']}]  risk={ss['risk']}")
+
+            # Aura Impact
+            print(f"\n{'─'*60}")
+            print(f" AURA IMPACT (BBC Mathematics — State-Aware)")
+            print(f"{'─'*60}")
+            ir = aura['impact_ratio']
+            cd = aura['chaos_density']
+            pr = aura['pulse_risk']
+            cr = aura['composite_risk']
+            print(f"  Impact Ratio:    {ir['value']}  [{ir['state']}]")
+            print(f"  Chaos Density:   {cd['value']}  [{cd['state']}]")
+            print(f"  Pulse Risk:      {pr['value']}  [{pr['state']}]")
+            print(f"  Composite Risk:  {cr['value']}  [{cr['state']}]")
+            print(f"\n  VERDICT: {report['verdict_icon']} {report['verdict']}")
+            print(f"{'='*60}")
+
+    elif args.command == "patch":
+        project_path = os.path.abspath(args.path)
+        ctx_path = args.context
+        if not ctx_path:
+            for candidate in [
+                os.path.join(project_path, ".bbc", "bbc_context.json"),
+                os.path.join(project_path, "bbc_context.json"),
+                ".bbc/bbc_context.json"
+            ]:
+                if os.path.exists(candidate):
+                    ctx_path = candidate
+                    break
+        if not ctx_path or not os.path.exists(ctx_path):
+            print("[ERROR] BBC context not found. Run 'bbc analyze' first.")
+            sys.exit(1)
+
+        from bbc_core.auto_patcher import AutoPatcher
+        patcher = AutoPatcher(ctx_path, project_path)
+        dry_run = not getattr(args, "apply", False)
+        report = patcher.analyze_and_patch(dry_run=dry_run)
+
+        if getattr(args, "json", False):
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+        else:
+            mode_str = "DRY-RUN (preview)" if dry_run else "APPLY"
+            oq = report["overall_quality"]
+            print(f"\n{'='*60}")
+            print(f" 🔧 BBC AUTO PATCHER [{mode_str}]")
+            print(f"{'='*60}")
+            print(f"  Total issues found: {report['total_patches']}")
+            print(f"  Applied:            {report['applied']}")
+            print(f"  Skipped (unsafe):   {report['skipped_unsafe']}")
+            print(f"  Overall Quality:    {oq['value']}  [{oq['state']}]")
+
+            if report["patch_results"]:
+                print(f"\n{'─'*60}")
+                print(f" PATCHES")
+                print(f"{'─'*60}")
+                for i, pr in enumerate(report["patch_results"], 1):
+                    p = pr["patch"]
+                    safe = "✅" if pr.get("safe_to_apply") else "🔴"
+                    applied = " [APPLIED]" if pr.get("applied") else ""
+                    print(f"  {i}. {safe} [{p['action']}] {p['file']}")
+                    print(f"     {p['description']}{applied}")
+                    if "patch_quality" in pr:
+                        pq = pr["patch_quality"]
+                        print(f"     Quality: {pq['value']} [{pq['state']}]")
+
+            if report["reseal_needed"]:
+                print(f"\n{'─'*60}")
+                print(f" RESEAL NEEDED")
+                print(f"{'─'*60}")
+                for r in report["reseal_needed"]:
+                    print(f"  ⚠️  {r['file']}: {r['description']}")
+                print(f"\n  Run 'bbc analyze' to reseal context.")
+
+            print(f"{'='*60}")
+            if dry_run and report["total_patches"] > 0:
+                print(f"\n  💡 To apply safe patches: bbc patch {args.path} --apply")
+
+    elif args.command == "doctor":
+        from bbc_core.project_hygiene import doctor_report, print_doctor_report
+        report = doctor_report(args.path)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2, cls=BBCEncoder))
+        else:
+            print_doctor_report(report)
+    elif args.command == "publish-check":
+        from bbc_core.project_hygiene import publish_check_report, print_publish_check_report
+        report = publish_check_report(args.path)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2, cls=BBCEncoder))
+        else:
+            print_publish_check_report(report)
+        if report.get("status") == "FAIL":
+            sys.exit(2)
+    elif args.command == "clean":
+        from bbc_core.project_hygiene import clean_bbc_runtime, print_clean_report
+        report = clean_bbc_runtime(
+            args.path,
+            older_than_days=args.older_than_days,
+            max_mb=args.max_mb,
+            dry_run=args.dry_run,
+        )
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2, cls=BBCEncoder))
+        else:
+            print_clean_report(report)
+    elif args.command == "purge":
+        project_path = os.path.abspath(args.path)
+        silent = getattr(args, "silent", False)
+
+        if not args.force:
+            if getattr(args, "silent", False):
+                print("[ERROR] Purge requires --force when used with --silent")
+                sys.exit(1)
+            print(f"\n{'='*60}")
+            print(f"[!] WARNING: This will COMPLETELY remove ALL BBC traces from:")
+            print(f"    {project_path}")
+            print(f"{'='*60}")
+            print(f"    - .bbc/ directory (logs, indices, cache, weights)")
+            print(f"    - bbc_context.json, ai-context.json, bbc_rules.md")
+            print(f"    - All injected AI config files")
+            print(f"{'='*60}")
+            confirm = input("[?] Are you sure? Type 'yes' to confirm: ").strip().lower()
+            if confirm != 'yes':
+                print("[CANCEL] Purge aborted.")
+                sys.exit(0)
+
+        purge_bbc(project_path, silent=silent)
+    elif args.command == "agent":
+        from bbc_core.agent_adapter import run_adapter_validation
+        result = run_adapter_validation(args.recipe)
+
+        if result["status"] not in ["ERROR"] and result.get("exports"):
+            print(f"\n[*] Generated contexts available at:")
+            for name, path in result["exports"].items():
+                print(f"   [OK] {name}: {path}")
+
+    elif args.command == "inject":
+        from bbc_core.agent_adapter import inject_to_project
+
+        project_path = os.path.abspath(args.path)
+        silent = getattr(args, "silent", False)
+
+        # Auto-detect recipe file
+        if args.recipe:
+            recipe_path = args.recipe
+        else:
+            # Try to find recipe in .bbc/ isolation directory first, then legacy root
+            possible_recipes = [
+                BBCConfig.get_context_path(project_path),
+                os.path.join(project_path, "bbc_context.json"),
+                "bbc_context.json"
+            ]
+            recipe_path = None
+            for p in possible_recipes:
+                if os.path.exists(p):
+                    recipe_path = p
+                    break
+
+            if not recipe_path:
+                if not silent:
+                    print(f"[ERROR] No BBC recipe found. Run 'analyze' first or specify --recipe")
+                sys.exit(1)
+
+        stale = _is_context_stale(project_path, recipe_path)
+        if stale:
+            if args.auto_analyze:
+                cli = BBCCLI()
+                asyncio.run(cli.run_analysis(project_path, "bbc_context.json", silent=silent, model=getattr(args, "model", "gpt-4")))
+                recipe_path = BBCConfig.get_context_path(project_path)
+            elif silent and not args.allow_stale:
+                print("[ERROR] Context is stale. Use --auto-analyze or --allow-stale.")
+                sys.exit(2)
+            elif not silent and not args.allow_stale:
+                confirm = input("[?] Context is stale. Run analyze now? (y/N): ").strip().lower()
+                if confirm == "y":
+                    cli = BBCCLI()
+                    asyncio.run(cli.run_analysis(project_path, "bbc_context.json", silent=silent, model=getattr(args, "model", "gpt-4")))
+                    recipe_path = BBCConfig.get_context_path(project_path)
+                else:
+                    print("[ERROR] Aborting inject due to stale context. Use --allow-stale to force.")
+                    sys.exit(2)
+            elif not silent:
+                print("[WARN] Context is stale; proceeding due to --allow-stale.")
+
+        if not silent:
+            print(f"\n{'='*70}")
+            print(f">>> BBC UNIVERSAL AI CONTEXT INJECTION")
+            print(f"{'='*70}")
+            print(f"[*] Project: {project_path}")
+            print(f"[*] Recipe: {recipe_path}")
+            print(f"{'-'*70}")
+
+        try:
+            created_files = inject_to_project(
+                recipe_path,
+                project_path,
+                optimize=not getattr(args, "no_optimize", False),
+                active_command="inject",
+                model=getattr(args, "model", "gpt-4"),
+            )
+
+            if not silent:
+                print(f"\n[OK] Successfully injected BBC context to {len(created_files)} AI assistants:\n")
+                for ai_name, file_path in created_files.items():
+                    rel_path = os.path.relpath(file_path, project_path)
+                    print(f"   [OK] {ai_name:20} -> {rel_path}")
+
+                print(f"\n{'='*70}")
+                print(f"[SUCCESS] All AI assistants configured!")
+                print(f"[TIP] Each AI will now read BBC context automatically")
+                print(f"{'='*70}\n")
+
+        except Exception as e:
+            print(f"\n[ERROR] Injection failed: {e}")
+            sys.exit(1)
+
+    elif args.command == "bootstrap":
+        from bbc_core.agent_adapter import inject_to_project
+
+        project_path = os.path.abspath(args.path)
+        out_name = args.out
+
+        if not args.yes:
+            if not args.silent:
+                print(f"\n{'='*70}")
+                print(">>> BBC BOOTSTRAP (ANALYZE + INJECT)")
+                print(f"{'='*70}")
+                print(f"[*] Project: {project_path}")
+                print(f"[*] Output:  {out_name}")
+                print(f"{'-'*70}")
+                print("This will generate/update BBC context and write IDE/agent instruction files.")
+            confirm = input("[?] Continue? (y/N): ").strip().lower()
+            if confirm != "y":
+                if not args.silent:
+                    print("[CANCEL] Bootstrap aborted.")
+                sys.exit(0)
+
+        cli = BBCCLI()
+        asyncio.run(cli.run_analysis(project_path, out_name, silent=args.silent, model=getattr(args, "model", "gpt-4")))
+
+        context_path = BBCConfig.get_context_path(project_path) if out_name == "bbc_context.json" else os.path.abspath(out_name)
+        try:
+            created_files = inject_to_project(
+                context_path,
+                project_path,
+                optimize=not getattr(args, "no_optimize", False),
+                active_command="bootstrap",
+                model=getattr(args, "model", "gpt-4"),
+            )
+        except Exception as e:
+            print(f"[ERROR] Bootstrap inject failed: {e}")
+            sys.exit(1)
+
+        if not args.silent:
+            print(f"\n[OK] Bootstrap complete.")
+            print(f"[OK] Injected: {len(created_files)} target(s)")
+            for ai_name, file_path in created_files.items():
+                rel_path = os.path.relpath(file_path, project_path)
+                print(f"   [OK] {ai_name:20} -> {rel_path}")
+            print(f"{'='*70}\n")
+
+    elif args.command == "cleanup":
+        from bbc_core.agent_adapter import cleanup_injected_configs
+
+        project_path = os.path.abspath(args.path)
+        silent = getattr(args, "silent", False)
+
+        if not silent:
+            print(f"\n{'='*70}")
+            print(f">>> BBC AI CONFIG CLEANUP")
+            print(f"{'='*70}")
+            print(f"[*] Project: {project_path}")
+            print(f"{'-'*70}")
+
+        # Find what would be deleted
+        files_to_delete = cleanup_injected_configs(project_path, dry_run=True)
+
+        if not files_to_delete:
+            if not silent:
+                print(f"\n[INFO] No BBC-injected config files found.")
+                print(f"{'='*70}\n")
+            sys.exit(0)
+
+        if not silent:
+            print(f"\n[!] Found {len(files_to_delete)} BBC-injected files:\n")
+            for f in files_to_delete:
+                rel_path = os.path.relpath(f, project_path)
+                print(f"   [DEL] {rel_path}")
+
+        if not args.force:
+            if silent:
+                print("[ERROR] Cleanup requires --force when used with --silent")
+                sys.exit(1)
+            print(f"\n{'-'*70}")
+            confirm = input("[?] Delete these files? (y/N): ").strip().lower()
+            if confirm != 'y':
+                if not silent:
+                    print(f"\n[CANCEL] Cleanup aborted.")
+                sys.exit(0)
+
+        # Actually delete
+        deleted = cleanup_injected_configs(project_path, dry_run=False)
+
+        if not silent:
+            print(f"\n[OK] Deleted {len(deleted)} files:")
+            for f in deleted:
+                rel_path = os.path.relpath(f, project_path)
+                print(f"   [OK] {rel_path}")
+
+            print(f"\n{'='*70}")
+            print(f"[SUCCESS] Cleanup complete!")
+            print(f"{'='*70}\n")
+
+    elif args.command == "audit":
+        report = audit_bbc_traces(args.path)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2, cls=BBCEncoder))
+            sys.exit(0)
+
+        print(f"\n{'='*70}")
+        print(">>> BBC AUDIT")
+        print(f"{'='*70}")
+        print(f"[*] Project: {report['project_root']}")
+        print(f"{'-'*70}")
+        print(f"  Core Artifacts (v8.6 isolation):")
+        for name, meta in report.get("paths", {}).items():
+            if meta.get("category") != "core":
+                continue
+            status = "FOUND" if meta.get("exists") else "MISSING"
+            print(f"  [{status:7}] {name}")
+        print(f"{'-'*70}")
+        print(f"  Legacy / Info (not required in v8.6):")
+        for name, meta in report.get("paths", {}).items():
+            if meta.get("category") != "legacy":
+                continue
+            status = "FOUND" if meta.get("exists") else "N/A"
+            print(f"  [{status:7}] {name}")
+        print(f"{'='*70}\n")
+
+    elif args.command == "adaptive":
+        from bbc_core.adaptive_mode import BBCAdaptiveMode
+
+        engine = BBCAdaptiveMode(args.recipe)
+
+        inputs = {
+            "primary": args.primary,
+            "direct": args.direct,
+            "indirect": "",
+            "safety": [],
+            "context_match_ratio": args.ratio
+        }
+
+        result = engine.process_query(inputs)
+
+        if args.json:
+            print(result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, indent=2, cls=BBCEncoder))
+        else:
+            # Pretty print
+            data = json.loads(result) if isinstance(result, str) else result
+            print(f"\n{'='*60}")
+            print(f"BBC ADAPTIVE MODE RESPONSE")
+            print(f"{'='*60}")
+            print(f"Mode: {data['mode'].upper()}")
+            print(f"Confidence: {data['confidence']:.2f}")
+            print(f"{'-'*60}")
+            if data['answers']:
+                print("Answers:")
+                for ans in data['answers']:
+                    print(f"  - {ans['statement']}")
+                    print(f"    Source: [{ans['source_symbol']}]")
+            if data['violations']:
+                print(f"{'!'*60}")
+                print("VIOLATIONS DETECTED:")
+                for v in data['violations']:
+                    print(f"  ! {v}")
+            print(f"{'='*60}\n")
+
+    elif args.command == "check":
+        from bbc_core.hallucination_guard import HallucinationGuard
+
+        # Context path: explicit veya auto-detect
+        ctx_path = args.context
+        if not ctx_path:
+            # Auto-detect: dosyanın bulunduğu dizinden yukarı .bbc/bbc_context.json ara
+            search_dir = os.path.dirname(os.path.abspath(args.file))
+            for _ in range(10):
+                candidate = os.path.join(search_dir, ".bbc", "bbc_context.json")
+                if os.path.exists(candidate):
+                    ctx_path = candidate
+                    break
+                parent = os.path.dirname(search_dir)
+                if parent == search_dir:
+                    break
+                search_dir = parent
+            if not ctx_path:
+                print("[ERROR] bbc_context.json not found. Use --context to specify path.")
+                sys.exit(1)
+
+        # Dosyayı oku
+        if not os.path.exists(args.file):
+            print(f"[ERROR] File not found: {args.file}")
+            sys.exit(1)
+
+        with open(args.file, 'r', encoding='utf-8') as f:
+            generated_code = f.read()
+
+        guard = HallucinationGuard(ctx_path)
+        strict_mode = not getattr(args, "relaxed", False)
+        result = guard.check(generated_code, strict=strict_mode)
+
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            aura = result.get("aura_field", {})
+            print(f"\n{'='*60}")
+            print(f" BBC HALLUCINATION GUARD REPORT")
+            print(f"{'='*60}")
+            print(f"  File:           {args.file}")
+            print(f"  Context:        {ctx_path}")
+            print(f"  Mode:           {'STRICT' if strict_mode else 'RELAXED'}")
+            print(f"  Match Ratio:    {result['match_ratio']} ({result['matched']}/{result['total_referenced']})")
+            print(f"  Verdict:        {result['verdict']}")
+
+            if result.get("hallucinated_symbols"):
+                print(f"\n  Unknown Symbols ({len(result['hallucinated_symbols'])}):")
+                for sym in result["hallucinated_symbols"][:15]:
+                    print(f"    - {sym}")
+
+            if result.get("speculative_violations"):
+                print(f"\n  Speculative Language:")
+                for sv in result["speculative_violations"]:
+                    print(f"    ! {sv}")
+
+            print(f"\n{'─'*60}")
+            print(f" AURA FIELD (BBC Mathematics — State-Aware)")
+            print(f"{'─'*60}")
+            s_info = aura.get('S_match', {})
+            c_info = aura.get('C_chaos', {})
+            p_info = aura.get('P_pulse', {})
+            a_info = aura.get('aura_score', {})
+            conf_info = aura.get('confidence', {})
+            print(f"  S (Match):      {s_info.get('value', 'N/A')}  [{s_info.get('state', '?')}]  origin={s_info.get('origin', '?')}")
+            print(f"  C (Chaos):      {c_info.get('value', 'N/A')}  [{c_info.get('state', '?')}]  origin={c_info.get('origin', '?')}")
+            print(f"  P (Pulse):      {p_info.get('value', 'N/A')}  [{p_info.get('state', '?')}]  origin={p_info.get('origin', '?')}")
+            print(f"  Aura Score:     {a_info.get('value', 'N/A')}  [{a_info.get('state', '?')}]  origin={a_info.get('origin', '?')}")
+            print(f"  Field κ:        {aura.get('field_stability', 'N/A')}")
+            print(f"  Confidence:     {conf_info.get('value', 'N/A')}  [{conf_info.get('state', '?')}]")
+            print(f"  Governor:       {'HMPU' if aura.get('governor_used') else 'Fallback'}")
+            print(f"{'='*60}")
+
+    elif args.command == "remember":
+        from bbc_core.memory_store import MemoryStore
+        store = MemoryStore(args.path)
+        success, msg = store.remember(args.topic, args.content, force=args.force)
+        if success:
+            print(f"[OK] Memory saved under topic '{args.topic}'")
+        else:
+            if "CONFLICT" in msg:
+                print(f"[CONFLICT] {msg}")
+            else:
+                print(f"[ERROR] Failed to save memory: {msg}")
+            sys.exit(1)
+
+    elif args.command == "recall":
+        from bbc_core.memory_store import MemoryStore
+        store = MemoryStore(args.path)
+        results = store.recall(args.query)
+        if results:
+            print(f"\n{'='*60}")
+            print(f" BBC EPISODIC MEMORY RECALL: '{args.query}'")
+            print(f"{'='*60}")
+            for r in results:
+                dt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(r['timestamp']))
+                print(f"[{dt}] Topic: {r['topic']}")
+                print(f"  -> {r['content']}\n")
+            print(f"{'='*60}\n")
+        else:
+            print(f"[INFO] No memories found matching '{args.query}'")
+
+    elif args.command == "usage":
+        from bbc_core.ide_auto_config import IDEAutoConfigurator
+        from bbc_core.ide_parser import IDETokenParser
+
+        ide_detector = IDEAutoConfigurator()
+        active_ide = ide_detector.detect_active_ide() or "unknown"
+
+        if active_ide == "unknown":
+            success, msg, data = False, "No active supported IDE detected.", {}
+        else:
+            parser = IDETokenParser(args.path)
+            success, msg, data = parser.get_real_usage(active_ide)
+
+        print(f"\n{'='*60}")
+        print(f" BBC IDE TOKEN USAGE ANALYZER")
+        print(f"{'='*60}")
+        print(f"  Target IDE:     {active_ide.upper()}")
+        print(f"  Status:         {msg}")
+        if success:
+            model_name = data.get('model', 'unknown')
+            total_tokens = data.get('total_tokens', 0)
+            total_chars = data.get('total_chars', 0)
+
+            # --- BBC AUTO-CALIBRATION ---
+            calibrated_divisor = 4.0
+            if total_tokens > 0 and total_chars > 0:
+                calibrated_divisor = total_chars / total_tokens
+
+                # Save to .bbc/config.json
+                ctx_path = BBCConfig.get_context_path(args.path)
+                bbc_dir = os.path.dirname(ctx_path)
+                config_path = os.path.join(bbc_dir, "config.json")
+
+                os.makedirs(bbc_dir, exist_ok=True)
+                cfg = {}
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            cfg = json.load(f)
+                    except Exception:
+                        pass
+
+                divisors = cfg.setdefault("token_divisors", {})
+                divisors[model_name] = round(calibrated_divisor, 2)
+
+                try:
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(cfg, f, indent=2)
+                except Exception:
+                    pass
+
+            print(f"\n  Model Identified:    {model_name}")
+            print(f"  Exact Input Tokens:  {data.get('input_tokens', 0):,}")
+            print(f"  Exact Output Tokens: {data.get('output_tokens', 0):,}")
+            print(f"  Total Tokens Billed: {total_tokens:,}")
+            print(f"  Messages Parsed:     {data.get('message_count', 0)}")
+            print(f"  Data Source:         {data.get('source', '')}")
+            print(f"\n  [CALIBRATION] Token Divisor updated to {calibrated_divisor:.2f} for model '{model_name}'")
+        else:
+            print("\n  [Fallback] Reverting to BBC heuristic token estimator.")
+        print(f"{'='*60}\n")
+
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,6 @@
 """
-BBC-AOS CLI Entrypoint - Phase 13D
-Exposes bbc cli commands: init, index, ask, doctor, replay, benchmark,
-obsidian connect, wiki, vault.
+BBC-AOS CLI Entrypoint - Phase 13A
+Exposes bbc cli commands: init, index, ask, doctor, replay, benchmark, obsidian connect.
 """
 
 import os
@@ -9,7 +8,8 @@ import sys
 import json
 import time
 import click
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Dict, Any
 
 # Add src folder to sys.path to resolve internal modules correctly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -40,33 +40,6 @@ def load_memory_manager(path: str = ".") -> MemoryManager:
         except Exception:
             pass
     return memory_manager
-
-
-def load_config(path: str = ".") -> Dict[str, Any]:
-    """Helper to load config.json from .bbc directory."""
-    config_path = os.path.join(path, ".bbc", "config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                res = json.load(f)
-                if isinstance(res, dict):
-                    return res
-        except Exception:
-            pass
-    return {"obsidian": {"vault_path": ""}}
-
-
-def save_config(config_data: Dict[str, Any], path: str = ".") -> None:
-    """Helper to save config.json to .bbc directory."""
-    bbc_dir = os.path.join(path, ".bbc")
-    os.makedirs(bbc_dir, exist_ok=True)
-    config_path = os.path.join(bbc_dir, "config.json")
-    try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config_data, f, indent=2)
-    except Exception:
-        pass
-
 
 
 def save_memory_manager(memory_manager: MemoryManager, path: str = ".") -> None:
@@ -103,80 +76,46 @@ def cli() -> None:
     pass
 
 
-@cli.command(name="init")
+@cli.command()
 @click.option("--dir", "directory", default=".", help="Target directory to initialize.")
-@click.option("--no-interactive", "no_interactive", is_flag=True, default=False,
-              help="Skip interactive prompts (CI/non-interactive environments).")
-def cli_init(directory: str, no_interactive: bool) -> None:
+def init(directory: str) -> None:
     """Initialize a new BBC-AOS project workspace."""
-    from bbc_aos.vault.manager import (
-        vault_init, detect_obsidian
-    )
-
     bbc_dir = os.path.join(directory, ".bbc")
     os.makedirs(os.path.join(bbc_dir, "state"), exist_ok=True)
     os.makedirs(os.path.join(bbc_dir, "logs"), exist_ok=True)
     os.makedirs(os.path.join(bbc_dir, "indices"), exist_ok=True)
-
-    config_data: Dict[str, Any] = {"obsidian": {"vault_path": ""}}
+    
     config_path = os.path.join(bbc_dir, "config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-        except Exception:
-            pass
-
+    if not os.path.exists(config_path):
+        config_data = {
+            "obsidian": {
+                "vault_path": os.path.expanduser("~/BBC_KNOWLEDGE"),
+                "enabled": False,
+                "auto_open": False,
+                "show_git_recommendations": False,
+            }
+        }
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, indent=2)
+    from bbc_aos.security.policy_engine import PolicyEngine
+    PolicyEngine(directory).ensure_policy()
+            
     click.echo("[INIT] Initialized BBC-AOS repository structure.")
     click.echo("[INIT] Created .bbc/ database, logs, state, and index directories.")
-
-    # --- Knowledge Vault Integration ---
-    enable_vault = True
-    if not no_interactive:
-        enable_vault = click.confirm(
-            "\n[INIT] Enable BBC Knowledge Vault integration? "
-            "(Stores notes globally, keeps source repo clean)",
-            default=True,
-        )
-
-    if enable_vault:
-        import os as _os
-        project_id = _os.path.basename(_os.path.abspath(directory))
-        vault_root = vault_init(project_id=project_id)
-        config_data["vault"] = {
-            "enabled": True,
-            "root": str(vault_root),
-            "project_id": project_id,
-        }
-        click.echo(f"[INIT] Knowledge Vault created at: {vault_root}")
-        click.echo(f"[INIT] Project vault: {vault_root}/Projects/{project_id}/")
-
-        # --- Obsidian Auto-Detection ---
-        obsidian_path = detect_obsidian()
-        if obsidian_path:
-            click.echo(f"[INIT] Obsidian detected at: {obsidian_path}")
-            open_obs = True
-            if not no_interactive:
-                open_obs = click.confirm(
-                    "[INIT] Open vault automatically with Obsidian?",
-                    default=True,
-                )
-            config_data["obsidian"] = {
-                "vault_path": str(vault_root),
-                "obsidian_path": obsidian_path,
-                "enabled": open_obs,
-            }
-            if open_obs:
-                click.echo("[INIT] Obsidian integration enabled. Vault will open on next 'bbc vault open'.")
-        else:
-            click.echo("[INIT] Obsidian not detected. You can connect manually: bbc obsidian connect <vault_path>")
-            config_data["obsidian"] = {"vault_path": "", "enabled": False}
+    click.echo("[INIT] Created .bbc/config.json template.")
+    obsidian_detected = _detect_obsidian_installation()
+    if obsidian_detected:
+        click.echo(f"[INIT] Obsidian installation detected at: {obsidian_detected}")
+        enable_vault = click.confirm("[INIT] Enable BBC Knowledge Vault?", default=True)
+        auto_open = click.confirm("[INIT] Enable automatic vault opening on bbc ask?", default=False)
+        show_git = click.confirm("[INIT] Show Git backup recommendations?", default=True)
+        _update_init_obsidian_config(config_path, enable_vault, auto_open, show_git)
+        if show_git:
+            _print_obsidian_git_tip()
     else:
-        click.echo("[INIT] Vault integration skipped. Run 'bbc vault init' at any time to enable.")
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(config_data, f, indent=2)
-    click.echo("[INIT] Configuration saved to .bbc/config.json.")
+        click.echo("[INIT] Obsidian not found.")
+        click.echo("[INIT] BBC Knowledge Vault will work as plain Markdown.")
+        click.echo("[INIT] You can connect Obsidian later with: bbc obsidian connect <path>")
 
 
 @cli.command()
@@ -267,8 +206,9 @@ def index(path: str) -> None:
 
 
 @cli.command()
+@click.option("--shadow", is_flag=True, help="Run full pipeline without approval requests, commits, or file writes.")
 @click.argument("query")
-def ask(query: str) -> None:
+def ask(query: str, shadow: bool) -> None:
     """Execute the core Orchestrator pipeline for a task request."""
     click.echo(f"[ASK] Running Agent Orchestration for request: '{query}'")
     
@@ -318,6 +258,9 @@ def ask(query: str) -> None:
     )
     
     click.echo(f"[ASK] Pipeline status: {status['status']}")
+    reflection = _generate_reflection(query, status)
+    _record_failures(status)
+    _write_vault_notes(query, status, reflection)
     
     outputs = status.get("outputs", {})
     if "planner_result" in outputs:
@@ -340,6 +283,15 @@ def ask(query: str) -> None:
         risk_level = tester_res.get("risk_level", "LOW") if tester_res else "LOW"
         
         click.echo(f"[ASK] Verification Verdict: {verdict} (Risk: {risk_level})")
+        if shadow:
+            click.echo("[ASK] SHADOW EXECUTION COMPLETE")
+            click.echo(f"[ASK] Verification: {verdict}")
+            click.echo("[ASK] Files that WOULD change:")
+            for file_path in coder_res.get("modified_files", []) + coder_res.get("added_files", []) + coder_res.get("removed_files", []):
+                click.echo(f"  - {file_path}")
+            click.echo(f"[ASK] Estimated risk: {risk_level}")
+            click.echo("[ASK] No approval request, commit, or file change was performed.")
+            return
         
         if verdict == "APPROVED":
             approval_audit = AppAuditLog(project_root=".")
@@ -347,11 +299,10 @@ def ask(query: str) -> None:
             commit_audit = CommitAuditLog(project_root=".")
             commit_manager = CommitManager(audit_log=commit_audit, approval_manager=approval_manager)
             
-            if risk_level in ("MEDIUM", "HIGH", "CRITICAL"):
-                approved = click.confirm("[ASK] Manual approval required. Do you authorize this transaction commit?")
-            else:
-                click.echo("[ASK] Low risk transaction. Auto-approving...")
-                approved = True
+            approved = click.confirm(
+                f"[ASK] Commit approval required for {risk_level} risk. Do you authorize this transaction commit?",
+                default=False,
+            )
                 
             if approved:
                 app_res = approval_manager.request_approval(
@@ -375,85 +326,6 @@ def ask(query: str) -> None:
                     workspace_root="."
                 )
                 click.echo(f"[ASK] Transaction completed successfully. Commit Hash: {commit_res['commit_hash']}")
-
-                # --- Generate Knowledge Vault note (Phase 13D) ---
-                config = load_config(".")
-                vault_cfg = config.get("vault", {})
-                vault_enabled = vault_cfg.get("enabled", False)
-                vault_root_str = vault_cfg.get("root", "")
-                project_id = vault_cfg.get("project_id", os.path.basename(os.path.abspath(".")))
-
-                prop_id = f"prop_{replay_id}"
-                prop_filename = f"{prop_id}.md"
-
-                affected_files = list(coder_res.get("modified_files", [])) + \
-                                 list(coder_res.get("added_files", [])) + \
-                                 list(coder_res.get("removed_files", []))
-
-                note_content = f"""---
-id: {prop_id}
-title: "Execution: {query}"
-project: {project_id}
-type: Execution
-status: COMPLETED
-trace_id: {trace_id}
-replay_id: {replay_id}
-commit_hash: {commit_res['commit_hash']}
-risk_level: {risk_level}
-verdict: {verdict}
-created_at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
-tags: [bbc-aos, auto-generated, execution]
----
-
-# Execution: {query}
-
-## Goal Details
-* **Description**: {query}
-* **Risk Level**: {risk_level}
-* **Verification Verdict**: {verdict}
-* **Trace ID**: {trace_id}
-* **Replay ID**: {replay_id}
-* **Commit Hash**: {commit_res['commit_hash']}
-
-## Affected Files
-"""
-                for f in affected_files:
-                    note_content += f"* {f}\n"
-                if not affected_files:
-                    note_content += "* None\n"
-
-                note_content += f"\n## Patch Details\n```diff\n{coder_res.get('patch', '')}\n```\n"
-
-                try:
-                    # Primary: Write to global Knowledge Vault
-                    if vault_enabled and vault_root_str:
-                        from pathlib import Path as _Path
-                        exec_dir = _Path(vault_root_str) / "Projects" / project_id / "Executions"
-                        exec_dir.mkdir(parents=True, exist_ok=True)
-                        exec_note = exec_dir / prop_filename
-                        exec_note.write_text(note_content, encoding="utf-8")
-                        click.echo(f"[ASK] Knowledge Vault note saved: {exec_note}")
-                    else:
-                        # Fallback: legacy BBC_Wiki/ in project directory (backward compat)
-                        wiki_dir = "BBC_Wiki"
-                        os.makedirs(os.path.join(wiki_dir, "Approvals"), exist_ok=True)
-                        prop_path = os.path.join(wiki_dir, "Approvals", prop_filename)
-                        with open(prop_path, "w", encoding="utf-8") as pf:
-                            pf.write(note_content)
-                        click.echo(f"[ASK] Created BBC Wiki note proposal: BBC_Wiki/Approvals/{prop_filename}")
-
-                    # Also write to connected Obsidian vault if configured separately
-                    obsidian_cfg = config.get("obsidian", {})
-                    obs_vault_path = obsidian_cfg.get("vault_path", "")
-                    if obs_vault_path and os.path.exists(obs_vault_path) and obs_vault_path != vault_root_str:
-                        obs_exec_dir = os.path.join(obs_vault_path, "BBC_Wiki", "Approvals")
-                        os.makedirs(obs_exec_dir, exist_ok=True)
-                        with open(os.path.join(obs_exec_dir, prop_filename), "w", encoding="utf-8") as opf:
-                            opf.write(note_content)
-                        click.echo("[ASK] Copied note to connected Obsidian vault.")
-                except Exception as e:
-                    click.echo(f"[ASK] Failed to write knowledge note: {e}")
-
             else:
                 click.echo("[ASK] Transaction rejected. Rolling back transient workspace modifications.")
         else:
@@ -532,6 +404,98 @@ def benchmark() -> None:
     click.echo("[BENCHMARK] Benchmark suite executed successfully. All metrics PASS.")
 
 
+@cli.command()
+def audit() -> None:
+    """Show BBC-AOS audit and observability summary."""
+    from bbc_aos.audit.loop_audit import LoopAudit
+
+    summary = LoopAudit(".").summary()
+    click.echo(f"Executions: {summary['executions']}")
+    click.echo(f"Success Rate: {summary['success_rate']}%")
+    click.echo(f"Failures: {summary['failures_pct']}%")
+    click.echo(f"Rollback Count: {summary['rollback_count']}")
+    click.echo(f"Most Modified File: {summary['most_modified_file']}")
+    click.echo(f"Most Common Failure: {summary['most_common_failure']}")
+    click.echo(f"Average Latency: {summary['average_latency_ms']}ms")
+    click.echo(f"Human Rejection Rate: {summary['human_rejection_rate']}%")
+
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def failures(ctx: click.Context) -> None:
+    """List and search persistent BBC-AOS failure memory."""
+    if ctx.invoked_subcommand is None:
+        from bbc_aos.memory.failure_memory import FailureMemory
+
+        records = FailureMemory(".").list_failures()
+        if not records:
+            click.echo("[FAILURES] No failure memory records.")
+            return
+        for record in records:
+            click.echo(f"{record['failure_id']} {record['failure_type']} x{record['occurrence_count']}")
+            click.echo(f"  {record['root_cause']}")
+
+
+@failures.command("search")
+@click.argument("query")
+def failures_search(query: str) -> None:
+    """Search failure memory."""
+    from bbc_aos.memory.failure_memory import FailureMemory
+
+    results = FailureMemory(".").search(query)
+    if not results:
+        click.echo("[FAILURES] No matches.")
+        return
+    for record in results:
+        click.echo(f"{record['failure_id']} {record['failure_type']} x{record['occurrence_count']}")
+        click.echo(f"  {record['root_cause']}")
+
+
+@click.group()
+def daemon() -> None:
+    """Run bounded BBC-AOS daemon loops."""
+    pass
+
+
+@daemon.command("start")
+@click.option("--goal", default="", help="Goal to run in the daemon loop.")
+@click.option("--max-iter", default=3, type=int, help="Maximum loop iterations, capped at 3.")
+@click.option("--auto-approve", is_flag=True, help="Only continue automatically for LOW risk work.")
+def daemon_start(goal: str, max_iter: int, auto_approve: bool) -> None:
+    """Start an interactive daemon loop."""
+    from bbc_aos.loop.loop_engine import LoopEngine
+
+    status_path = Path(".bbc") / "daemon_status.json"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    if not goal:
+        goal = click.prompt("[DAEMON] Goal", default="review current project")
+    engine = LoopEngine(project_root=".")
+    result = engine.run(goal=goal, interactive=True, max_iter=max_iter, auto_approve=auto_approve)
+    status_path.write_text(json.dumps({"running": False, "last_result": result}, indent=2), encoding="utf-8")
+    click.echo(f"[DAEMON] Status: {result['status']}")
+    if result.get("results"):
+        click.echo("[DAEMON] Proposed work is waiting for user approval.")
+
+
+@daemon.command("stop")
+def daemon_stop() -> None:
+    """Stop daemon state tracking."""
+    status_path = Path(".bbc") / "daemon_status.json"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    status_path.write_text(json.dumps({"running": False, "stopped_at": time.time()}, indent=2), encoding="utf-8")
+    click.echo("[DAEMON] Stopped.")
+
+
+@daemon.command("status")
+def daemon_status() -> None:
+    """Show daemon status."""
+    status_path = Path(".bbc") / "daemon_status.json"
+    if not status_path.exists():
+        click.echo("[DAEMON] No daemon status found.")
+        return
+    click.echo(status_path.read_text(encoding="utf-8"))
+
+
 @click.group()
 def obsidian() -> None:
     """Obsidian knowledge vault connection management."""
@@ -543,360 +507,260 @@ def obsidian() -> None:
 def connect(vault_path: str) -> None:
     """Connect to Obsidian vault workspace."""
     click.echo(f"[OBSIDIAN] Connecting to Obsidian vault: '{vault_path}'")
-    config = load_config(".")
-    config["obsidian"] = {"vault_path": os.path.abspath(vault_path)}
-    save_config(config, ".")
-    click.echo(f"[OBSIDIAN] Connected successfully. Vault path set to: {os.path.abspath(vault_path)}")
+    
+    from bbc_aos.knowledge.human.obsidian_registry import ObsidianRegistry
+    from bbc_aos.knowledge.human.obsidian_gateway import ObsidianGateway
+    
+    registry = ObsidianRegistry()
+    registry.reset()
+    registry.register_vault("main_vault", vault_path)
+    registry.freeze()
+    
+    gateway = ObsidianGateway(registry)
+    try:
+        os.makedirs(vault_path, exist_ok=True)
+        with open(os.path.join(vault_path, "Design.md"), "w", encoding="utf-8") as f:
+            f.write("# Design note\nTags: design\n")
+            
+        records = gateway.index_vault("main_vault")
+        click.echo(f"[OBSIDIAN] Indexed vault main_vault. Found {len(records)} note records.")
+        click.echo("[OBSIDIAN] Connection established successfully.")
+    except Exception as e:
+        click.echo(f"[OBSIDIAN] Connection failed: {e}")
 
 
-@obsidian.command(name="status")
-def obsidian_status() -> None:
-    """Display connection status to Obsidian."""
-    config = load_config(".")
-    vault_path = config.get("obsidian", {}).get("vault_path", "")
-    if vault_path and os.path.exists(vault_path):
-        click.echo("[OBSIDIAN] Status: CONNECTED")
-        click.echo(f"[OBSIDIAN] Connected vault path: {vault_path}")
-    else:
-        click.echo("[OBSIDIAN] Status: DISCONNECTED")
+@obsidian.command("setup-git")
+@click.option("--vault-path", default="", help="BBC Knowledge Vault path.")
+def obsidian_setup_git(vault_path: str) -> None:
+    """Guide Obsidian Git setup without configuring GitHub sync automatically."""
+    import shutil
+    import subprocess
 
-
-@obsidian.command()
-def disconnect() -> None:
-    """Disconnect from the connected Obsidian vault."""
-    config = load_config(".")
-    config["obsidian"] = {"vault_path": ""}
-    save_config(config, ".")
-    click.echo("[OBSIDIAN] Disconnected successfully.")
+    vault = Path(vault_path or os.path.expanduser("~/BBC_KNOWLEDGE"))
+    git_path = shutil.which("git")
+    click.echo(f"[OBSIDIAN] Vault: {vault}")
+    click.echo(f"[OBSIDIAN] Git installed: {'YES' if git_path else 'NO'}")
+    is_repo = (vault / ".git").exists()
+    click.echo(f"[OBSIDIAN] Vault is Git repo: {'YES' if is_repo else 'NO'}")
+    if git_path and vault.exists() and not is_repo:
+        if click.confirm("[OBSIDIAN] Initialize Git repository in this vault?", default=False):
+            subprocess.run([git_path, "-C", str(vault), "init"], check=False)
+    if click.confirm("[OBSIDIAN] Show Obsidian Git plugin recommendation?", default=True):
+        _print_obsidian_git_tip()
 
 
 @click.group()
 def wiki() -> None:
-    """BBC Wiki management and review workflows."""
+    """BBC Knowledge Vault tools."""
     pass
 
 
-@wiki.command(name="init")
-@click.option("--dir", "directory", default=".", help="Target directory to initialize the Wiki.")
-def wiki_init(directory: str) -> None:
-    """Initialize BBC_Wiki structure inside the project."""
-    wiki_dir = os.path.join(directory, "BBC_Wiki")
-    folders = [
-        "Decisions",
-        "Architecture",
-        "Executions",
-        "Failures",
-        "Replays",
-        "Approvals",
-        "Lessons_Learned"
-    ]
-    for folder in folders:
-        os.makedirs(os.path.join(wiki_dir, folder), exist_ok=True)
-    
-    readme_content = """# BBC Wiki
-This is the human-readable project memory vault for BBC-AOS.
-All architectural decisions, executions, failures, and replays are documented here in Obsidian-compatible Markdown.
-"""
-    with open(os.path.join(wiki_dir, "README.md"), "w", encoding="utf-8") as f:
-        f.write(readme_content)
-        
-    click.echo("[WIKI] Initialized BBC_Wiki directory structure.")
-    click.echo("[WIKI] Created folders: " + ", ".join(folders))
+@wiki.command("search")
+@click.argument("query")
+@click.option("--project", default="", help="Project id under BBC_KNOWLEDGE/Projects.")
+@click.option("--vault-path", default="", help="BBC Knowledge Vault path.")
+def wiki_search(query: str, project: str, vault_path: str) -> None:
+    """Search BBC Knowledge Vault markdown notes."""
+    from bbc_aos.wiki.compiler import WikiCompiler
 
-
-@wiki.command(name="status")
-def wiki_status() -> None:
-    """Display the status of BBC Wiki and note counts."""
-    wiki_dir = "BBC_Wiki"
-    if not os.path.exists(wiki_dir):
-        click.echo("[WIKI] BBC Wiki is not initialized in this repository. Run 'bbc wiki init' to setup.")
+    results = WikiCompiler(vault_path).search(query, project)
+    if not results:
+        click.echo("[WIKI] No results.")
         return
-        
-    click.echo("[WIKI] Status: INITIALIZED")
-    folders = [
-        "Decisions",
-        "Architecture",
-        "Executions",
-        "Failures",
-        "Replays",
-        "Approvals",
-        "Lessons_Learned"
-    ]
-    for folder in folders:
-        folder_path = os.path.join(wiki_dir, folder)
-        files_count = 0
-        if os.path.exists(folder_path):
-            files_count = len([f for f in os.listdir(folder_path) if f.endswith(".md")])
-        click.echo(f"  - {folder}: {files_count} notes")
-        
-    # Check Obsidian status
-    config = load_config(".")
-    vault_path = config.get("obsidian", {}).get("vault_path", "")
-    if vault_path and os.path.exists(vault_path):
-        click.echo(f"[WIKI] Connected Obsidian Vault: {vault_path}")
-    else:
-        click.echo("[WIKI] Connected Obsidian Vault: None (Standalone mode)")
+    for item in results:
+        click.echo(f"{item['title']} [{item['score']}]")
+        click.echo(f"  {item['path']}")
 
 
-@wiki.command()
-def pending() -> None:
-    """List pending wiki note proposals awaiting approval."""
-    approvals_dir = os.path.join("BBC_Wiki", "Approvals")
-    if not os.path.exists(approvals_dir):
-        click.echo("[WIKI] BBC Wiki is not initialized.")
-        return
-    files = [f for f in os.listdir(approvals_dir) if f.endswith(".md") and not f.startswith("rejected")]
-    if not files:
-        click.echo("[WIKI] No pending proposals.")
-        return
-    click.echo("[WIKI] Pending Note Proposals:")
-    for f in files:
-        click.echo(f"  - {f}")
+@wiki.command("status")
+@click.option("--project", default="", help="Project id under BBC_KNOWLEDGE/Projects.")
+@click.option("--vault-path", default="", help="BBC Knowledge Vault path.")
+def wiki_status(project: str, vault_path: str) -> None:
+    """Show BBC Knowledge Vault health."""
+    from bbc_aos.wiki.compiler import WikiCompiler
 
-
-@wiki.command()
-@click.argument("note_id")
-def approve(note_id: str) -> None:
-    """Approve a wiki note proposal and promote it to semantic memory."""
-    if not note_id.endswith(".md"):
-        note_id += ".md"
-    src_path = os.path.join("BBC_Wiki", "Approvals", note_id)
-    if not os.path.exists(src_path):
-        click.echo(f"[WIKI] Note proposal '{note_id}' not found.")
-        return
-        
-    # Parse type from note content or default to Executions
-    note_type = "Executions"
-    try:
-        with open(src_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        for line in content.splitlines():
-            if line.startswith("type:"):
-                note_type = line.split(":", 1)[1].strip() + "s"
-                break
-    except Exception:
-        pass
-        
-    # Standardize target folder name
-    if note_type not in ["Decisions", "Architecture", "Executions", "Failures", "Replays", "Lessons_Learned"]:
-        note_type = "Executions"
-        
-    dst_dir = os.path.join("BBC_Wiki", note_type)
-    os.makedirs(dst_dir, exist_ok=True)
-    dst_path = os.path.join(dst_dir, note_id)
-    
-    # Update status to APPROVED in note content
-    try:
-        with open(src_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        content = content.replace("status: PROPOSED", "status: APPROVED")
-        with open(dst_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        os.remove(src_path)
-    except Exception as e:
-        click.echo(f"[WIKI] Promotion failed: {e}")
-        return
-        
-    # Load and save semantic memory
-    memory_manager = load_memory_manager(".")
-    record_params = {
-        "memory_id": f"wiki_{note_id.replace('.md', '')}",
-        "trace_id": "tr_wiki",
-        "replay_id": "rp_wiki",
-        "deterministic_hash": f"hash_wiki_{int(time.time())}",
-        "originating_agent": "system",
-        "layer": "semantic",
-        "data": {"content": content, "type": note_type, "note_id": note_id}
-    }
-    memory_manager.create_record(record_params, actor_role="human")
-    save_memory_manager(memory_manager, ".")
-    
-    # Also write to connected Obsidian vault if present
-    config = load_config(".")
-    vault_path = config.get("obsidian", {}).get("vault_path", "")
-    if vault_path and os.path.exists(vault_path):
-        try:
-            obs_dst_dir = os.path.join(vault_path, "BBC_Wiki", note_type)
-            os.makedirs(obs_dst_dir, exist_ok=True)
-            with open(os.path.join(obs_dst_dir, note_id), "w", encoding="utf-8") as f:
-                f.write(content)
-            # Remove from approvals in obsidian vault
-            obs_src = os.path.join(vault_path, "BBC_Wiki", "Approvals", note_id)
-            if os.path.exists(obs_src):
-                os.remove(obs_src)
-        except Exception:
-            pass
-            
-    click.echo(f"[WIKI] Note '{note_id}' approved and promoted to 'BBC_Wiki/{note_type}/'.")
-    click.echo("[WIKI] Registered note to semantic memory layer.")
-
-
-@wiki.command()
-@click.argument("note_id")
-def reject(note_id: str) -> None:
-    """Reject a wiki note proposal."""
-    if not note_id.endswith(".md"):
-        note_id += ".md"
-    src_path = os.path.join("BBC_Wiki", "Approvals", note_id)
-    if not os.path.exists(src_path):
-        click.echo(f"[WIKI] Note proposal '{note_id}' not found.")
-        return
-        
-    # Move note to rejected/ or rename to rejected
-    rej_dir = os.path.join("BBC_Wiki", "Approvals", "rejected")
-    os.makedirs(rej_dir, exist_ok=True)
-    dst_path = os.path.join(rej_dir, note_id)
-    
-    try:
-        with open(src_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        content = content.replace("status: PROPOSED", "status: REJECTED")
-        with open(dst_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        os.remove(src_path)
-    except Exception as e:
-        click.echo(f"[WIKI] Rejection failed: {e}")
-        return
-        
-    # Also remove from connected Obsidian vault if present
-    config = load_config(".")
-    vault_path = config.get("obsidian", {}).get("vault_path", "")
-    if vault_path and os.path.exists(vault_path):
-        try:
-            obs_rej_dir = os.path.join(vault_path, "BBC_Wiki", "Approvals", "rejected")
-            os.makedirs(obs_rej_dir, exist_ok=True)
-            with open(os.path.join(obs_rej_dir, note_id), "w", encoding="utf-8") as f:
-                f.write(content)
-            obs_src = os.path.join(vault_path, "BBC_Wiki", "Approvals", note_id)
-            if os.path.exists(obs_src):
-                os.remove(obs_src)
-        except Exception:
-            pass
-            
-    click.echo(f"[WIKI] Note '{note_id}' rejected and moved to 'Approvals/rejected/'.")
-
-
-@wiki.command(name="open")
-def wiki_open() -> None:
-    """Open the local BBC_Wiki directory."""
-    wiki_path = os.path.abspath("BBC_Wiki")
-    if not os.path.exists(wiki_path):
-        click.echo("[WIKI] BBC Wiki is not initialized.")
-        return
-    click.echo(f"[WIKI] Opening BBC Wiki directory: {wiki_path}")
-    try:
-        if sys.platform == "win32":
-            startfile_fn = getattr(os, "startfile", None)
-            if startfile_fn is not None:
-                startfile_fn(wiki_path)
-        elif sys.platform == "darwin":
-            import subprocess
-            subprocess.call(["open", wiki_path])
-        else:
-            import subprocess
-            subprocess.call(["xdg-open", wiki_path])
-    except Exception:
-        click.echo("[WIKI] Auto-open failed. Directory path printed above.")
-
-
-
-# ---------------------------------------------------------------------------
-# Vault Command Group — Phase 13D
-# ---------------------------------------------------------------------------
-
-@click.group()
-def vault() -> None:
-    """BBC Knowledge Vault management (global, repo-independent)."""
-    pass
-
-
-@vault.command(name="init")
-@click.option("--project", "project_id", default=None,
-              help="Project identifier for the vault sub-folder.")
-def vault_cmd_init(project_id: Optional[str]) -> None:
-    """Create the global BBC_KNOWLEDGE vault."""
-    from bbc_aos.vault.manager import vault_init
-    import os as _os
-    pid = project_id or _os.path.basename(_os.path.abspath("."))
-    root = vault_init(project_id=pid)
-    click.echo(f"[VAULT] Knowledge Vault initialized at: {root}")
-    click.echo(f"[VAULT] Project folder: {root}/Projects/{pid}/")
-
-
-@vault.command(name="status")
-def vault_cmd_status() -> None:
-    """Display Knowledge Vault status and Obsidian connection."""
-    from bbc_aos.vault.manager import vault_status
-    info = vault_status()
-    if info["exists"]:
-        click.echo("[VAULT] Status      : ACTIVE")
-        click.echo(f"[VAULT] Root        : {info['path']}")
-        click.echo(f"[VAULT] Projects    : {info['project_count']}")
-    else:
-        click.echo("[VAULT] Status      : NOT INITIALIZED")
-        click.echo("[VAULT] Run 'bbc vault init' to create the global vault.")
-    if info["obsidian_path"]:
-        click.echo(f"[VAULT] Obsidian    : {info['obsidian_path']}")
-    else:
-        click.echo("[VAULT] Obsidian    : Not detected")
-
-
-@vault.command(name="open")
-def vault_cmd_open() -> None:
-    """Open the global Knowledge Vault in system file explorer."""
-    from bbc_aos.vault.manager import vault_open, get_global_vault_root
-    vault_root = get_global_vault_root()
-    if not vault_root.exists():
-        click.echo("[VAULT] Vault not initialized. Run 'bbc vault init' first.")
-        return
-    click.echo(f"[VAULT] Opening vault: {vault_root}")
-    success = vault_open()
-    if not success:
-        click.echo("[VAULT] Auto-open failed. Open the folder manually from the path above.")
-
-
-@vault.command(name="disconnect")
-def vault_cmd_disconnect() -> None:
-    """Remove vault integration settings from .bbc/config.json."""
-    from bbc_aos.vault.manager import vault_disconnect
-    vault_disconnect(bbc_dir=".bbc")
-    click.echo("[VAULT] Disconnected. Vault data preserved at ~/BBC_KNOWLEDGE/.")
-
-
-@vault.command(name="migrate")
-@click.option("--source", "source_wiki", default="BBC_Wiki",
-              help="Path to the existing BBC_Wiki directory to migrate.")
-def vault_cmd_migrate(source_wiki: str) -> None:
-    """Migrate an existing BBC_Wiki/ directory into the global vault."""
-    from bbc_aos.vault.manager import vault_migrate_wiki
-    dest = vault_migrate_wiki(source_wiki)
-    if dest:
-        click.echo(f"[VAULT] Migration complete. Notes moved to: {dest}")
-        click.echo("[VAULT] You can now safely delete the local BBC_Wiki/ directory.")
-    else:
-        click.echo(f"[VAULT] Source directory '{source_wiki}' not found. Nothing migrated.")
-
-
-@vault.command(name="github-connect")
-def vault_cmd_github_connect() -> None:
-    """Display instructions for syncing the Knowledge Vault via GitHub."""
-    from bbc_aos.vault.manager import get_global_vault_root
-    vault_root = get_global_vault_root()
-    click.echo("[VAULT] GitHub Sync Setup Instructions")
-    click.echo("="*50)
-    click.echo("1. Create a private GitHub repository (e.g., 'my-bbc-knowledge').")
-    click.echo("2. Open Obsidian and install the 'Obsidian Git' community plugin.")
-    click.echo("3. In Obsidian Git settings, set the vault path to:")
-    click.echo(f"   {vault_root}")
-    click.echo("4. Enable auto-commit and auto-push (recommended: every 10 minutes).")
-    click.echo("5. Your Knowledge Vault will sync privately to GitHub automatically.")
-    click.echo("="*50)
-    click.echo("[VAULT] See docs/obsidian_guide.md for detailed instructions.")
-
+    status = WikiCompiler(vault_path).status(project)
+    counts = status["counts"]
+    click.echo(f"Vault Healthy: {'YES' if status['vault_healthy'] else 'NO'}")
+    click.echo(f"Executions: {counts.get('Executions', 0)}")
+    click.echo(f"Failures: {counts.get('Failures', 0)}")
+    click.echo(f"Lessons: {counts.get('Lessons_Learned', 0)}")
+    click.echo(f"Concepts: {counts.get('Concepts', 0)}")
+    click.echo(f"Broken Links: {status['broken_links']}")
+    click.echo(f"Orphan Notes: {status['orphan_notes']}")
+    click.echo(f"Last Sync: {status['last_sync']}")
 
 cli.add_command(obsidian)
+cli.add_command(daemon)
 cli.add_command(wiki)
-cli.add_command(vault)
+cli.add_command(failures)
+
+
+def _detect_obsidian_installation() -> str:
+    candidates = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Obsidian" / "Obsidian.exe",
+        Path(os.environ.get("ProgramFiles", "")) / "Obsidian" / "Obsidian.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Obsidian" / "Obsidian.exe",
+    ]
+    for candidate in candidates:
+        if str(candidate) and candidate.exists():
+            return str(candidate)
+    return ""
+
+
+def _update_init_obsidian_config(
+    config_path: str,
+    enable_vault: bool,
+    auto_open: bool,
+    show_git: bool,
+) -> None:
+    try:
+        data = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    data.setdefault("obsidian", {})
+    data["obsidian"].update(
+        {
+            "vault_path": os.path.expanduser("~/BBC_KNOWLEDGE"),
+            "enabled": bool(enable_vault),
+            "auto_open": bool(auto_open),
+            "show_git_recommendations": bool(show_git),
+        }
+    )
+    Path(config_path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _print_obsidian_git_tip() -> None:
+    click.echo("[OBSIDIAN] Tip: You can back up BBC Knowledge Vault with the Obsidian Git plugin.")
+    click.echo("[OBSIDIAN] BBC does not configure GitHub sync for you.")
+
+
+def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str, Any] | None = None) -> None:
+    """Writes C3 note types to the project-external BBC Knowledge Vault."""
+    try:
+        from bbc_aos.wiki.compiler import WikiCompiler
+        from bbc_aos.wiki.lesson_generator import LessonGenerator
+        from bbc_aos.wiki.entity_generator import EntityGenerator
+        from bbc_aos.wiki.concept_generator import ConceptGenerator
+        from bbc_aos.wiki.reflection_generator import ReflectionGenerator
+
+        project_id = Path(os.getcwd()).name
+        compiler = WikiCompiler()
+        project = compiler.ensure_project(project_id)
+        outputs = status.get("outputs", {})
+        coder = outputs.get("coder_result", {})
+        verify = outputs.get("verify_result", {})
+        tester = outputs.get("tester_result", {})
+        affected = coder.get("modified_files", []) + coder.get("added_files", []) + coder.get("removed_files", [])
+        execution = {
+            "goal": query,
+            "status": status.get("status", "UNKNOWN"),
+            "risk_level": verify.get("risk_level") or tester.get("risk_level", "LOW"),
+            "operation": "patch" if affected else "review",
+            "affected_files": affected,
+        }
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        note_type = "Executions" if status.get("status") == "COMPLETED" else "Failures"
+        (project / note_type / f"run_{stamp}.md").write_text(
+            "\n".join([f"# Execution: {query}", f"- Status: {status.get('status')}", f"- Risk: {execution['risk_level']}", ""]),
+            encoding="utf-8",
+        )
+        if verify.get("verdict") == "REJECTED":
+            (project / "Decisions" / f"decision_{stamp}.md").write_text(
+                "\n".join([f"# Decision: {query}", "- Verdict: REJECTED", ""]),
+                encoding="utf-8",
+            )
+        (project / "Lessons_Learned" / f"lesson_{stamp}.md").write_text(
+            LessonGenerator().generate(execution),
+            encoding="utf-8",
+        )
+        if execution["risk_level"] in ("HIGH", "CRITICAL"):
+            (project / "Architecture" / f"architecture_{stamp}.md").write_text(
+                "\n".join([f"# Architecture: {query}", f"- Risk: {execution['risk_level']}", ""]),
+                encoding="utf-8",
+            )
+        for file_path in affected:
+            safe_name = file_path.replace("\\", "/").replace("/", "__")
+            (project / "Entities" / f"{safe_name}.md").write_text(
+                EntityGenerator().generate(file_path, execution, related=affected),
+                encoding="utf-8",
+            )
+        (project / "Concepts" / f"concept_{stamp}.md").write_text(
+            ConceptGenerator().generate(query, affected, execution),
+            encoding="utf-8",
+        )
+        if reflection:
+            ReflectionGenerator().write(
+                project,
+                query,
+                reflection,
+                affected_files=affected,
+                replay_id=status.get("replay_id", ""),
+            )
+        compiler.compile_index(project_id)
+    except Exception:
+        return
+
+
+def _generate_reflection(query: str, status: Dict[str, Any]) -> Dict[str, Any]:
+    """Generates deterministic C8 reflection payload."""
+    try:
+        from bbc_aos.agents.reflection_agent import ReflectionAgent
+
+        agent = ReflectionAgent()
+        params = {
+            "context": {
+                "goal": query,
+                "outputs": status.get("outputs", {}),
+                "failures": status.get("failures", []),
+                "retries": sum(status.get("retry_counts", {}).values()) if isinstance(status.get("retry_counts"), dict) else 0,
+                "rollback": status.get("rollback", {}),
+            }
+        }
+        reflection = agent.execute(params)
+        reflection_dir = Path(".bbc") / "reflections"
+        reflection_dir.mkdir(parents=True, exist_ok=True)
+        reflection_path = reflection_dir / f"{status.get('trace_id', 'trace')}_{status.get('replay_id', 'replay')}.json"
+        reflection_path.write_text(json.dumps(reflection, indent=2), encoding="utf-8")
+        return reflection
+    except Exception:
+        return {}
+
+
+def _record_failures(status: Dict[str, Any]) -> None:
+    """Persists recurring verification failures into FailureMemory."""
+    try:
+        from bbc_aos.memory.failure_memory import FailureMemory
+
+        outputs = status.get("outputs", {})
+        verify = outputs.get("verify_result", {})
+        coder = outputs.get("coder_result", {})
+        violations = verify.get("violations", [])
+        if not violations:
+            return
+        affected = coder.get("modified_files", []) + coder.get("added_files", []) + coder.get("removed_files", [])
+        memory = FailureMemory(".")
+        for violation in violations:
+            text = str(violation)
+            failure_type = "VERIFICATION_REJECTION"
+            upper = text.upper()
+            if "IMPORT" in upper:
+                failure_type = "MISSING_IMPORT"
+            elif "SYMBOL" in upper:
+                failure_type = "INVALID_SYMBOL"
+            elif "BLAST" in upper:
+                failure_type = "BLAST_RADIUS_VIOLATION"
+            elif "PATCH" in upper:
+                failure_type = "PATCH_CONFLICT"
+            memory.record_failure(
+                trace_id=status.get("trace_id", ""),
+                failure_type=failure_type,
+                root_cause=text,
+                affected_files=affected,
+                resolution="pending",
+            )
+    except Exception:
+        return
 
 if __name__ == "__main__":
     cli()

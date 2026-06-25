@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": {
+    "counts": {
+      "INFO": 0,
+      "ERROR": 0,
+      "WARNING": 0,
+      "DEBUG": 1
+    },
+    "patterns": [],
+    "anomalies": [],
+    "severity_summary": "Total 9 lines. Errors: 0, Warnings: 0"
+  },
+  "metrics": {
+    "raw_bytes": 170,
+    "recipe_bytes": 155,
+    "savings_ratio": "8.82%"
+  }
+}
