@@ -91,8 +91,7 @@ def detect_obsidian() -> Optional[str]:
 
     else:
         # Linux: PATH lookup first
-        import shutil as sh
-        found = sh.which("obsidian")
+        found = shutil.which("obsidian")
         if found:
             return found
         for candidate in _OBSIDIAN_LINUX_PATHS:

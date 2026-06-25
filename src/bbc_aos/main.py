@@ -9,7 +9,7 @@ import sys
 import json
 import time
 import click
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Add src folder to sys.path to resolve internal modules correctly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -110,7 +110,7 @@ def cli() -> None:
 def cli_init(directory: str, no_interactive: bool) -> None:
     """Initialize a new BBC-AOS project workspace."""
     from bbc_aos.vault.manager import (
-        vault_init, detect_obsidian, get_global_vault_root
+        vault_init, detect_obsidian
     )
 
     bbc_dir = os.path.join(directory, ".bbc")
@@ -375,32 +375,37 @@ def ask(query: str) -> None:
                     workspace_root="."
                 )
                 click.echo(f"[ASK] Transaction completed successfully. Commit Hash: {commit_res['commit_hash']}")
-                
-                # Generate a BBC Wiki note proposal
-                wiki_dir = "BBC_Wiki"
-                if os.path.exists(wiki_dir):
-                    prop_id = f"prop_{replay_id}"
-                    prop_filename = f"{prop_id}.md"
-                    prop_path = os.path.join(wiki_dir, "Approvals", prop_filename)
-                    
-                    affected_files = list(coder_res.get("modified_files", [])) + \
-                                     list(coder_res.get("added_files", [])) + \
-                                     list(coder_res.get("removed_files", []))
-                    
-                    note_content = f"""---
+
+                # --- Generate Knowledge Vault note (Phase 13D) ---
+                config = load_config(".")
+                vault_cfg = config.get("vault", {})
+                vault_enabled = vault_cfg.get("enabled", False)
+                vault_root_str = vault_cfg.get("root", "")
+                project_id = vault_cfg.get("project_id", os.path.basename(os.path.abspath(".")))
+
+                prop_id = f"prop_{replay_id}"
+                prop_filename = f"{prop_id}.md"
+
+                affected_files = list(coder_res.get("modified_files", [])) + \
+                                 list(coder_res.get("added_files", [])) + \
+                                 list(coder_res.get("removed_files", []))
+
+                note_content = f"""---
 id: {prop_id}
-title: Proposal for task: {query}
+title: "Execution: {query}"
+project: {project_id}
 type: Execution
-status: PROPOSED
+status: COMPLETED
 trace_id: {trace_id}
 replay_id: {replay_id}
 commit_hash: {commit_res['commit_hash']}
 risk_level: {risk_level}
 verdict: {verdict}
 created_at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+tags: [bbc-aos, auto-generated, execution]
 ---
 
-# Proposal: {query}
+# Execution: {query}
 
 ## Goal Details
 * **Description**: {query}
@@ -412,30 +417,43 @@ created_at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
 
 ## Affected Files
 """
-                    for f in affected_files:
-                        note_content += f"* {f}\n"
-                    if not affected_files:
-                        note_content += "* None\n"
-                        
-                    note_content += f"\n## Patch Details\n```diff\n{coder_res.get('patch', '')}\n```\n"
-                    
-                    try:
+                for f in affected_files:
+                    note_content += f"* {f}\n"
+                if not affected_files:
+                    note_content += "* None\n"
+
+                note_content += f"\n## Patch Details\n```diff\n{coder_res.get('patch', '')}\n```\n"
+
+                try:
+                    # Primary: Write to global Knowledge Vault
+                    if vault_enabled and vault_root_str:
+                        from pathlib import Path as _Path
+                        exec_dir = _Path(vault_root_str) / "Projects" / project_id / "Executions"
+                        exec_dir.mkdir(parents=True, exist_ok=True)
+                        exec_note = exec_dir / prop_filename
+                        exec_note.write_text(note_content, encoding="utf-8")
+                        click.echo(f"[ASK] Knowledge Vault note saved: {exec_note}")
+                    else:
+                        # Fallback: legacy BBC_Wiki/ in project directory (backward compat)
+                        wiki_dir = "BBC_Wiki"
                         os.makedirs(os.path.join(wiki_dir, "Approvals"), exist_ok=True)
+                        prop_path = os.path.join(wiki_dir, "Approvals", prop_filename)
                         with open(prop_path, "w", encoding="utf-8") as pf:
                             pf.write(note_content)
                         click.echo(f"[ASK] Created BBC Wiki note proposal: BBC_Wiki/Approvals/{prop_filename}")
-                        
-                        # Write to Obsidian connected vault as well if configured
-                        config = load_config(".")
-                        vault_path = config.get("obsidian", {}).get("vault_path", "")
-                        if vault_path and os.path.exists(vault_path):
-                            obs_prop_dir = os.path.join(vault_path, "BBC_Wiki", "Approvals")
-                            os.makedirs(obs_prop_dir, exist_ok=True)
-                            with open(os.path.join(obs_prop_dir, prop_filename), "w", encoding="utf-8") as opf:
-                                opf.write(note_content)
-                            click.echo("[ASK] Copied proposal note to connected Obsidian vault approvals.")
-                    except Exception as e:
-                        click.echo(f"[ASK] Failed to write wiki proposal: {e}")
+
+                    # Also write to connected Obsidian vault if configured separately
+                    obsidian_cfg = config.get("obsidian", {})
+                    obs_vault_path = obsidian_cfg.get("vault_path", "")
+                    if obs_vault_path and os.path.exists(obs_vault_path) and obs_vault_path != vault_root_str:
+                        obs_exec_dir = os.path.join(obs_vault_path, "BBC_Wiki", "Approvals")
+                        os.makedirs(obs_exec_dir, exist_ok=True)
+                        with open(os.path.join(obs_exec_dir, prop_filename), "w", encoding="utf-8") as opf:
+                            opf.write(note_content)
+                        click.echo("[ASK] Copied note to connected Obsidian vault.")
+                except Exception as e:
+                    click.echo(f"[ASK] Failed to write knowledge note: {e}")
+
             else:
                 click.echo("[ASK] Transaction rejected. Rolling back transient workspace modifications.")
         else:
@@ -797,7 +815,7 @@ def vault() -> None:
               help="Project identifier for the vault sub-folder.")
 def vault_cmd_init(project_id: Optional[str]) -> None:
     """Create the global BBC_KNOWLEDGE vault."""
-    from bbc_aos.vault.manager import vault_init, get_global_vault_root
+    from bbc_aos.vault.manager import vault_init
     import os as _os
     pid = project_id or _os.path.basename(_os.path.abspath("."))
     root = vault_init(project_id=pid)
@@ -811,7 +829,7 @@ def vault_cmd_status() -> None:
     from bbc_aos.vault.manager import vault_status
     info = vault_status()
     if info["exists"]:
-        click.echo(f"[VAULT] Status      : ACTIVE")
+        click.echo("[VAULT] Status      : ACTIVE")
         click.echo(f"[VAULT] Root        : {info['path']}")
         click.echo(f"[VAULT] Projects    : {info['project_count']}")
     else:
@@ -866,9 +884,9 @@ def vault_cmd_github_connect() -> None:
     vault_root = get_global_vault_root()
     click.echo("[VAULT] GitHub Sync Setup Instructions")
     click.echo("="*50)
-    click.echo(f"1. Create a private GitHub repository (e.g., 'my-bbc-knowledge').")
-    click.echo(f"2. Open Obsidian and install the 'Obsidian Git' community plugin.")
-    click.echo(f"3. In Obsidian Git settings, set the vault path to:")
+    click.echo("1. Create a private GitHub repository (e.g., 'my-bbc-knowledge').")
+    click.echo("2. Open Obsidian and install the 'Obsidian Git' community plugin.")
+    click.echo("3. In Obsidian Git settings, set the vault path to:")
     click.echo(f"   {vault_root}")
     click.echo("4. Enable auto-commit and auto-push (recommended: every 10 minutes).")
     click.echo("5. Your Knowledge Vault will sync privately to GitHub automatically.")
