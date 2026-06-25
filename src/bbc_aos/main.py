@@ -1,6 +1,7 @@
 """
-BBC-AOS CLI Entrypoint - Phase 13A
-Exposes bbc cli commands: init, index, ask, doctor, replay, benchmark, obsidian connect.
+BBC-AOS CLI Entrypoint - Phase 13D
+Exposes bbc cli commands: init, index, ask, doctor, replay, benchmark,
+obsidian connect, wiki, vault.
 """
 
 import os
@@ -104,26 +105,78 @@ def cli() -> None:
 
 @cli.command(name="init")
 @click.option("--dir", "directory", default=".", help="Target directory to initialize.")
-def cli_init(directory: str) -> None:
+@click.option("--no-interactive", "no_interactive", is_flag=True, default=False,
+              help="Skip interactive prompts (CI/non-interactive environments).")
+def cli_init(directory: str, no_interactive: bool) -> None:
     """Initialize a new BBC-AOS project workspace."""
+    from bbc_aos.vault.manager import (
+        vault_init, detect_obsidian, get_global_vault_root
+    )
+
     bbc_dir = os.path.join(directory, ".bbc")
     os.makedirs(os.path.join(bbc_dir, "state"), exist_ok=True)
     os.makedirs(os.path.join(bbc_dir, "logs"), exist_ok=True)
     os.makedirs(os.path.join(bbc_dir, "indices"), exist_ok=True)
-    
+
+    config_data: Dict[str, Any] = {"obsidian": {"vault_path": ""}}
     config_path = os.path.join(bbc_dir, "config.json")
-    if not os.path.exists(config_path):
-        config_data = {
-            "obsidian": {
-                "vault_path": "."
-            }
-        }
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config_data, f, indent=2)
-            
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+        except Exception:
+            pass
+
     click.echo("[INIT] Initialized BBC-AOS repository structure.")
     click.echo("[INIT] Created .bbc/ database, logs, state, and index directories.")
-    click.echo("[INIT] Created .bbc/config.json template.")
+
+    # --- Knowledge Vault Integration ---
+    enable_vault = True
+    if not no_interactive:
+        enable_vault = click.confirm(
+            "\n[INIT] Enable BBC Knowledge Vault integration? "
+            "(Stores notes globally, keeps source repo clean)",
+            default=True,
+        )
+
+    if enable_vault:
+        import os as _os
+        project_id = _os.path.basename(_os.path.abspath(directory))
+        vault_root = vault_init(project_id=project_id)
+        config_data["vault"] = {
+            "enabled": True,
+            "root": str(vault_root),
+            "project_id": project_id,
+        }
+        click.echo(f"[INIT] Knowledge Vault created at: {vault_root}")
+        click.echo(f"[INIT] Project vault: {vault_root}/Projects/{project_id}/")
+
+        # --- Obsidian Auto-Detection ---
+        obsidian_path = detect_obsidian()
+        if obsidian_path:
+            click.echo(f"[INIT] Obsidian detected at: {obsidian_path}")
+            open_obs = True
+            if not no_interactive:
+                open_obs = click.confirm(
+                    "[INIT] Open vault automatically with Obsidian?",
+                    default=True,
+                )
+            config_data["obsidian"] = {
+                "vault_path": str(vault_root),
+                "obsidian_path": obsidian_path,
+                "enabled": open_obs,
+            }
+            if open_obs:
+                click.echo("[INIT] Obsidian integration enabled. Vault will open on next 'bbc vault open'.")
+        else:
+            click.echo("[INIT] Obsidian not detected. You can connect manually: bbc obsidian connect <vault_path>")
+            config_data["obsidian"] = {"vault_path": "", "enabled": False}
+    else:
+        click.echo("[INIT] Vault integration skipped. Run 'bbc vault init' at any time to enable.")
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config_data, f, indent=2)
+    click.echo("[INIT] Configuration saved to .bbc/config.json.")
 
 
 @cli.command()
@@ -729,8 +782,103 @@ def wiki_open() -> None:
 
 
 
+# ---------------------------------------------------------------------------
+# Vault Command Group — Phase 13D
+# ---------------------------------------------------------------------------
+
+@click.group()
+def vault() -> None:
+    """BBC Knowledge Vault management (global, repo-independent)."""
+    pass
+
+
+@vault.command(name="init")
+@click.option("--project", "project_id", default=None,
+              help="Project identifier for the vault sub-folder.")
+def vault_cmd_init(project_id: Optional[str]) -> None:
+    """Create the global BBC_KNOWLEDGE vault."""
+    from bbc_aos.vault.manager import vault_init, get_global_vault_root
+    import os as _os
+    pid = project_id or _os.path.basename(_os.path.abspath("."))
+    root = vault_init(project_id=pid)
+    click.echo(f"[VAULT] Knowledge Vault initialized at: {root}")
+    click.echo(f"[VAULT] Project folder: {root}/Projects/{pid}/")
+
+
+@vault.command(name="status")
+def vault_cmd_status() -> None:
+    """Display Knowledge Vault status and Obsidian connection."""
+    from bbc_aos.vault.manager import vault_status
+    info = vault_status()
+    if info["exists"]:
+        click.echo(f"[VAULT] Status      : ACTIVE")
+        click.echo(f"[VAULT] Root        : {info['path']}")
+        click.echo(f"[VAULT] Projects    : {info['project_count']}")
+    else:
+        click.echo("[VAULT] Status      : NOT INITIALIZED")
+        click.echo("[VAULT] Run 'bbc vault init' to create the global vault.")
+    if info["obsidian_path"]:
+        click.echo(f"[VAULT] Obsidian    : {info['obsidian_path']}")
+    else:
+        click.echo("[VAULT] Obsidian    : Not detected")
+
+
+@vault.command(name="open")
+def vault_cmd_open() -> None:
+    """Open the global Knowledge Vault in system file explorer."""
+    from bbc_aos.vault.manager import vault_open, get_global_vault_root
+    vault_root = get_global_vault_root()
+    if not vault_root.exists():
+        click.echo("[VAULT] Vault not initialized. Run 'bbc vault init' first.")
+        return
+    click.echo(f"[VAULT] Opening vault: {vault_root}")
+    success = vault_open()
+    if not success:
+        click.echo("[VAULT] Auto-open failed. Open the folder manually from the path above.")
+
+
+@vault.command(name="disconnect")
+def vault_cmd_disconnect() -> None:
+    """Remove vault integration settings from .bbc/config.json."""
+    from bbc_aos.vault.manager import vault_disconnect
+    vault_disconnect(bbc_dir=".bbc")
+    click.echo("[VAULT] Disconnected. Vault data preserved at ~/BBC_KNOWLEDGE/.")
+
+
+@vault.command(name="migrate")
+@click.option("--source", "source_wiki", default="BBC_Wiki",
+              help="Path to the existing BBC_Wiki directory to migrate.")
+def vault_cmd_migrate(source_wiki: str) -> None:
+    """Migrate an existing BBC_Wiki/ directory into the global vault."""
+    from bbc_aos.vault.manager import vault_migrate_wiki
+    dest = vault_migrate_wiki(source_wiki)
+    if dest:
+        click.echo(f"[VAULT] Migration complete. Notes moved to: {dest}")
+        click.echo("[VAULT] You can now safely delete the local BBC_Wiki/ directory.")
+    else:
+        click.echo(f"[VAULT] Source directory '{source_wiki}' not found. Nothing migrated.")
+
+
+@vault.command(name="github-connect")
+def vault_cmd_github_connect() -> None:
+    """Display instructions for syncing the Knowledge Vault via GitHub."""
+    from bbc_aos.vault.manager import get_global_vault_root
+    vault_root = get_global_vault_root()
+    click.echo("[VAULT] GitHub Sync Setup Instructions")
+    click.echo("="*50)
+    click.echo(f"1. Create a private GitHub repository (e.g., 'my-bbc-knowledge').")
+    click.echo(f"2. Open Obsidian and install the 'Obsidian Git' community plugin.")
+    click.echo(f"3. In Obsidian Git settings, set the vault path to:")
+    click.echo(f"   {vault_root}")
+    click.echo("4. Enable auto-commit and auto-push (recommended: every 10 minutes).")
+    click.echo("5. Your Knowledge Vault will sync privately to GitHub automatically.")
+    click.echo("="*50)
+    click.echo("[VAULT] See docs/obsidian_guide.md for detailed instructions.")
+
+
 cli.add_command(obsidian)
 cli.add_command(wiki)
+cli.add_command(vault)
 
 if __name__ == "__main__":
     cli()

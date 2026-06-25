@@ -44,15 +44,18 @@ bbc ask "add jwt authentication"
 Once installed, BBC-AOS operates as a non-intrusive sidecar for your codebase. It establishes two distinct workspaces:
 
 1. **`.bbc/` (Silent Runtime Folder)**:
-   * This is the internal runtime database of BBC-AOS.
-   * Stores the semantic memory map (`memory_db.json`), configuration (`config.json`), indexes, state checkpoints, and detailed agent execution logs.
-   * **Developers do not edit this folder.** It is managed entirely by the CLI.
+   * Internal runtime database of BBC-AOS — managed entirely by the CLI.
+   * Stores the semantic memory map, configuration, indexes, state checkpoints, and execution logs.
+   * **Developers never edit this folder directly.**
+   * Add `.bbc/` to your `.gitignore` (runtime files should not be committed).
 
-2. **`BBC_Wiki/` (Human-Readable Project Memory)**:
-   * Automatically generated via `bbc wiki init`.
-   * Organized into directories: `Decisions/`, `Architecture/`, `Executions/`, `Failures/`, `Replays/`, `Approvals/`, and `Lessons_Learned/`.
-   * Contains clean, readable Markdown notes documenting agent choices, system faults, and code modifications.
+2. **`~/BBC_KNOWLEDGE/` (Global Knowledge Vault)**:
+   * Lives **outside** your source repository — your source repo stays clean.
+   * Automatically created during `bbc init` if vault integration is enabled.
+   * Organized by project: `~/BBC_KNOWLEDGE/Projects/<project_id>/`
+   * Sub-folders: `Decisions/`, `Executions/`, `Replays/`, `Failures/`, `Architecture/`, `Lessons_Learned/`
    * Can be opened directly in **Obsidian** as a local vault.
+   * **BBC_Wiki/ must never live inside the source repository.** See Phase 13D architecture.
 
 ### The Background Agent Loop & Limitations
 * BBC-AOS runs agent tasks in a transaction-safe manner.
@@ -62,21 +65,22 @@ Once installed, BBC-AOS operates as a non-intrusive sidecar for your codebase. I
 ### Example Run: The JWT Authentication Scenario
 Here is the actual CLI output when running a task:
 ```
+$ bbc init
+[INIT] Initialized BBC-AOS repository structure.
+[INIT] Enable BBC Knowledge Vault integration? [Y/n]: Y
+[INIT] Knowledge Vault created at: C:\Users\alice\BBC_KNOWLEDGE
+[INIT] Obsidian detected at: C:\Users\alice\AppData\Local\Programs\Obsidian\Obsidian.exe
+[INIT] Open vault automatically with Obsidian? [Y/n]: Y
+[INIT] Obsidian integration enabled.
+
 $ bbc ask "add jwt authentication"
 [ASK] Running Agent Orchestration for request: 'add jwt authentication'
 [ASK] Spawning AgentOrchestrator E2E execution pipeline...
 [DIFF ENGINE] No files in blast radius – generating empty diff.
 [ASK] Pipeline status: COMPLETED
-[ASK] PlannerAgent successfully decomposed the goal.
-[ASK] ContextAgent resolved task blast radius.
-[ASK] CoderAgent produced unified code diffs.
-[ASK] TesterAgent completed test specifications.
-[ASK] VerificationAgent audited code safety and imports.
 [ASK] Verification Verdict: APPROVED (Risk: LOW)
-[ASK] Low risk transaction. Auto-approving...
-[ASK] Transaction completed successfully. Commit Hash: 16c953865c1fdae830f5a22d22a6902cb9870ee5875fa966a21ff74410da56f8
-[ASK] Created BBC Wiki note proposal: BBC_Wiki/Approvals/prop_rp_1782377853.md
-[ASK] Copied proposal note to connected Obsidian vault approvals.
+[ASK] Transaction completed successfully.
+[ASK] Knowledge Vault note saved: ~/BBC_KNOWLEDGE/Projects/my_project/Executions/exec_jwt_auth.md
 ```
 
 ---
@@ -128,30 +132,48 @@ Audit logs record byte-for-byte state transitions. Re-running a task with the re
 
 ## 9. Obsidian Integration
 
-BBC-AOS integrates directly with your Obsidian workspace for interactive note review:
-* **Connection command**: Link your vault path with `bbc obsidian connect <vault_path>`.
-* **Status command**: Check active connection using `bbc obsidian status`.
-* **Disconnect command**: Unlink using `bbc obsidian disconnect`.
-* **Note Promotion Rules**: Notes are promoted to semantic layers based on frontmatter tags (e.g. `#promotion-ready`, `#core-spec`).
+BBC-AOS automatically detects Obsidian on all platforms during `bbc init`:
+
+* **Windows**: Registry lookup + common install paths (`%LOCALAPPDATA%/Programs/Obsidian`)
+* **macOS**: `/Applications/Obsidian.app`
+* **Linux**: PATH lookup + `~/.local/bin/obsidian`
+
+If Obsidian is found, you will be asked whether to auto-open the vault. The vault path is stored in `.bbc/config.json`.
+
+Manual connection (if auto-detect fails):
+* `bbc obsidian connect <vault_path>` — Link to a specific vault directory
+* `bbc obsidian status` — Show current connection
+* `bbc obsidian disconnect` — Unlink
+
+> **Tip**: Open `~/BBC_KNOWLEDGE/` as an Obsidian vault to see all projects.
 
 ---
 
 ## 10. CLI Reference
 
 ### Workspace & Execution
-* `bbc init`: Initialize a new BBC-AOS workspace.
+* `bbc init`: Initialize a new BBC-AOS workspace (prompts for vault + Obsidian).
+* `bbc init --no-interactive`: Non-interactive mode for CI environments.
 * `bbc index <path>`: Index codebase symbols and compile the semantic memory map.
 * `bbc ask "<query>"`: Run E2E orchestrator pipeline for a task.
 * `bbc doctor`: Verify health check parameters across all subsystems.
 * `bbc replay <replay_id>`: Reconstruct events from audit log.
 * `bbc benchmark`: Execute performance and token compression benchmarks.
 
+### Knowledge Vault
+* `bbc vault init`: Create the global `~/BBC_KNOWLEDGE/` vault.
+* `bbc vault status`: Show vault status and Obsidian connection.
+* `bbc vault open`: Open the vault in file explorer.
+* `bbc vault disconnect`: Remove vault settings from `.bbc/config.json`.
+* `bbc vault migrate`: Migrate existing `BBC_Wiki/` into the global vault.
+* `bbc vault github-connect`: Display GitHub sync setup instructions.
+
 ### Obsidian Connection
-* `bbc obsidian connect <vault_path>`: Connect local Obsidian vault.
+* `bbc obsidian connect <vault_path>`: Manually connect to an Obsidian vault.
 * `bbc obsidian status`: Display active Obsidian connection status.
 * `bbc obsidian disconnect`: Disconnect current Obsidian vault.
 
-### BBC Wiki
+### BBC Wiki (Legacy — use Vault for new projects)
 * `bbc wiki init`: Initialize local `BBC_Wiki/` directory structure.
 * `bbc wiki status`: Show note counts and current connection status.
 * `bbc wiki pending`: List pending wiki proposals waiting for approval.
@@ -182,6 +204,7 @@ BBC-AOS integrates directly with your Obsidian workspace for interactive note re
 
 * Multi-language projects are parsed with custom regex mapping but full semantic symbol graph construction is optimized primarily for Python codebases.
 * Replay systems depend on local `.bbc` audit logs; moving or deleting the audit directories prevents historical reconstruction.
+* Knowledge Vault requires write access to the home directory (`~/BBC_KNOWLEDGE/`).
 
 ---
 
@@ -193,8 +216,55 @@ Yes, BBC-AOS is fully certified on Windows, macOS, and Linux.
 ### Does it modify my active Git repository?
 No, it runs in a sandbox workspace and requires explicit human approval before modifications are transactionally committed.
 
+### Where does the Knowledge Vault live?
+The vault lives at `~/BBC_KNOWLEDGE/` (cross-platform, outside your source repo). This keeps your project repository clean and open-source safe.
+
+### Can I keep using BBC_Wiki/ inside my repo?
+For backward compatibility, `bbc wiki` commands still work. However, the recommended approach is to use the global vault (`bbc vault init`) and migrate existing notes with `bbc vault migrate`.
+
 ---
 
 ## 15. License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 16. Silent Runtime & Knowledge Vault
+
+BBC-AOS is designed to work **without requiring user attention**. The entire pipeline from developer intent to committed code runs silently:
+
+```
+Developer
+  └─► IDE (writes code)
+        └─► BBC-AOS (bbc ask)
+              ├─► PlannerAgent
+              ├─► ContextAgent
+              ├─► CoderAgent
+              ├─► TesterAgent
+              ├─► VerificationAgent
+              └─► CommitManager
+                    ├─► Source Repository (approved diffs)
+                    └─► ~/BBC_KNOWLEDGE/ (silent knowledge notes)
+                              └─► Obsidian (auto-opened if configured)
+```
+
+**What BBC-AOS writes silently:**
+
+| Report Type | Location | Content |
+|-------------|----------|---------|
+| Execution Report | `Executions/` | Task, agents used, timing, verdict |
+| Architecture Decision | `Decisions/` | Why a design choice was made |
+| Failure Report | `Failures/` | What failed, root cause, recovery |
+| Replay Log | `Replays/` | Step-by-step replay trace |
+| Lesson Learned | `Lessons_Learned/` | Extracted insight from execution |
+
+**What still requires human approval:**
+- Medium/High/Critical risk code changes (blocked by `ApprovalManager`)
+- Wiki note promotion (`bbc wiki approve <note_id>`)
+- GitHub vault sync setup (`bbc vault github-connect`)
+
+**Source repository safety guarantee:**
+- `.bbc/` runtime files → in `.gitignore`
+- `BBC_Wiki/` → in `.gitignore` (Phase 13D)
+- `BBC_KNOWLEDGE/` → lives at `~/`, never in source repo

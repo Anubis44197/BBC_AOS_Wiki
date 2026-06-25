@@ -125,3 +125,9 @@ cython_debug/
 .bbc/indices/
 .bbc/memory_db.json
 .bbc/approval_audit.jsonl
+
+# BBC Knowledge Vault — Phase 13D
+# These directories must NEVER live inside the source repository.
+# All knowledge is stored globally in ~/BBC_KNOWLEDGE/ instead.
+BBC_Wiki/
+BBC_KNOWLEDGE/
