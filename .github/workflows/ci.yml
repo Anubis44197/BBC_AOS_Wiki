@@ -37,12 +37,11 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest > pytest_fail.log 2>&1 || {
-            git config --global user.email "ci-bot@example.com"
-            git config --global user.name "CI Bot"
-            git add pytest_fail.log
-            git commit -m "chore: record pytest failure log [skip ci]"
-            git push origin main
+          pytest > pytest_output.txt 2>&1 || {
+            echo "### Pytest Failure Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat pytest_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
             exit 1
           }
 
