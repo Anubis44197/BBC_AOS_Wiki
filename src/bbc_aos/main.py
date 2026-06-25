@@ -41,6 +41,33 @@ def load_memory_manager(path: str = ".") -> MemoryManager:
     return memory_manager
 
 
+def load_config(path: str = ".") -> Dict[str, Any]:
+    """Helper to load config.json from .bbc directory."""
+    config_path = os.path.join(path, ".bbc", "config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                res = json.load(f)
+                if isinstance(res, dict):
+                    return res
+        except Exception:
+            pass
+    return {"obsidian": {"vault_path": ""}}
+
+
+def save_config(config_data: Dict[str, Any], path: str = ".") -> None:
+    """Helper to save config.json to .bbc directory."""
+    bbc_dir = os.path.join(path, ".bbc")
+    os.makedirs(bbc_dir, exist_ok=True)
+    config_path = os.path.join(bbc_dir, "config.json")
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, indent=2)
+    except Exception:
+        pass
+
+
+
 def save_memory_manager(memory_manager: MemoryManager, path: str = ".") -> None:
     """Helper to save memory manager database to disk storage."""
     bbc_dir = os.path.join(path, ".bbc")
@@ -75,9 +102,9 @@ def cli() -> None:
     pass
 
 
-@cli.command()
+@cli.command(name="init")
 @click.option("--dir", "directory", default=".", help="Target directory to initialize.")
-def init(directory: str) -> None:
+def cli_init(directory: str) -> None:
     """Initialize a new BBC-AOS project workspace."""
     bbc_dir = os.path.join(directory, ".bbc")
     os.makedirs(os.path.join(bbc_dir, "state"), exist_ok=True)
@@ -295,6 +322,67 @@ def ask(query: str) -> None:
                     workspace_root="."
                 )
                 click.echo(f"[ASK] Transaction completed successfully. Commit Hash: {commit_res['commit_hash']}")
+                
+                # Generate a BBC Wiki note proposal
+                wiki_dir = "BBC_Wiki"
+                if os.path.exists(wiki_dir):
+                    prop_id = f"prop_{replay_id}"
+                    prop_filename = f"{prop_id}.md"
+                    prop_path = os.path.join(wiki_dir, "Approvals", prop_filename)
+                    
+                    affected_files = list(coder_res.get("modified_files", [])) + \
+                                     list(coder_res.get("added_files", [])) + \
+                                     list(coder_res.get("removed_files", []))
+                    
+                    note_content = f"""---
+id: {prop_id}
+title: Proposal for task: {query}
+type: Execution
+status: PROPOSED
+trace_id: {trace_id}
+replay_id: {replay_id}
+commit_hash: {commit_res['commit_hash']}
+risk_level: {risk_level}
+verdict: {verdict}
+created_at: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+---
+
+# Proposal: {query}
+
+## Goal Details
+* **Description**: {query}
+* **Risk Level**: {risk_level}
+* **Verification Verdict**: {verdict}
+* **Trace ID**: {trace_id}
+* **Replay ID**: {replay_id}
+* **Commit Hash**: {commit_res['commit_hash']}
+
+## Affected Files
+"""
+                    for f in affected_files:
+                        note_content += f"* {f}\n"
+                    if not affected_files:
+                        note_content += "* None\n"
+                        
+                    note_content += f"\n## Patch Details\n```diff\n{coder_res.get('patch', '')}\n```\n"
+                    
+                    try:
+                        os.makedirs(os.path.join(wiki_dir, "Approvals"), exist_ok=True)
+                        with open(prop_path, "w", encoding="utf-8") as pf:
+                            pf.write(note_content)
+                        click.echo(f"[ASK] Created BBC Wiki note proposal: BBC_Wiki/Approvals/{prop_filename}")
+                        
+                        # Write to Obsidian connected vault as well if configured
+                        config = load_config(".")
+                        vault_path = config.get("obsidian", {}).get("vault_path", "")
+                        if vault_path and os.path.exists(vault_path):
+                            obs_prop_dir = os.path.join(vault_path, "BBC_Wiki", "Approvals")
+                            os.makedirs(obs_prop_dir, exist_ok=True)
+                            with open(os.path.join(obs_prop_dir, prop_filename), "w", encoding="utf-8") as opf:
+                                opf.write(note_content)
+                            click.echo("[ASK] Copied proposal note to connected Obsidian vault approvals.")
+                    except Exception as e:
+                        click.echo(f"[ASK] Failed to write wiki proposal: {e}")
             else:
                 click.echo("[ASK] Transaction rejected. Rolling back transient workspace modifications.")
         else:
@@ -384,28 +472,256 @@ def obsidian() -> None:
 def connect(vault_path: str) -> None:
     """Connect to Obsidian vault workspace."""
     click.echo(f"[OBSIDIAN] Connecting to Obsidian vault: '{vault_path}'")
+    config = load_config(".")
+    config["obsidian"] = {"vault_path": os.path.abspath(vault_path)}
+    save_config(config, ".")
+    click.echo(f"[OBSIDIAN] Connected successfully. Vault path set to: {os.path.abspath(vault_path)}")
+
+
+@obsidian.command(name="status")
+def obsidian_status() -> None:
+    """Display connection status to Obsidian."""
+    config = load_config(".")
+    vault_path = config.get("obsidian", {}).get("vault_path", "")
+    if vault_path and os.path.exists(vault_path):
+        click.echo("[OBSIDIAN] Status: CONNECTED")
+        click.echo(f"[OBSIDIAN] Connected vault path: {vault_path}")
+    else:
+        click.echo("[OBSIDIAN] Status: DISCONNECTED")
+
+
+@obsidian.command()
+def disconnect() -> None:
+    """Disconnect from the connected Obsidian vault."""
+    config = load_config(".")
+    config["obsidian"] = {"vault_path": ""}
+    save_config(config, ".")
+    click.echo("[OBSIDIAN] Disconnected successfully.")
+
+
+@click.group()
+def wiki() -> None:
+    """BBC Wiki management and review workflows."""
+    pass
+
+
+@wiki.command(name="init")
+@click.option("--dir", "directory", default=".", help="Target directory to initialize the Wiki.")
+def wiki_init(directory: str) -> None:
+    """Initialize BBC_Wiki structure inside the project."""
+    wiki_dir = os.path.join(directory, "BBC_Wiki")
+    folders = [
+        "Decisions",
+        "Architecture",
+        "Executions",
+        "Failures",
+        "Replays",
+        "Approvals",
+        "Lessons_Learned"
+    ]
+    for folder in folders:
+        os.makedirs(os.path.join(wiki_dir, folder), exist_ok=True)
     
-    from bbc_aos.knowledge.human.obsidian_registry import ObsidianRegistry
-    from bbc_aos.knowledge.human.obsidian_gateway import ObsidianGateway
-    
-    registry = ObsidianRegistry()
-    registry.reset()
-    registry.register_vault("main_vault", vault_path)
-    registry.freeze()
-    
-    gateway = ObsidianGateway(registry)
+    readme_content = """# BBC Wiki
+This is the human-readable project memory vault for BBC-AOS.
+All architectural decisions, executions, failures, and replays are documented here in Obsidian-compatible Markdown.
+"""
+    with open(os.path.join(wiki_dir, "README.md"), "w", encoding="utf-8") as f:
+        f.write(readme_content)
+        
+    click.echo("[WIKI] Initialized BBC_Wiki directory structure.")
+    click.echo("[WIKI] Created folders: " + ", ".join(folders))
+
+
+@wiki.command(name="status")
+def wiki_status() -> None:
+    """Display the status of BBC Wiki and note counts."""
+    wiki_dir = "BBC_Wiki"
+    if not os.path.exists(wiki_dir):
+        click.echo("[WIKI] BBC Wiki is not initialized in this repository. Run 'bbc wiki init' to setup.")
+        return
+        
+    click.echo("[WIKI] Status: INITIALIZED")
+    folders = [
+        "Decisions",
+        "Architecture",
+        "Executions",
+        "Failures",
+        "Replays",
+        "Approvals",
+        "Lessons_Learned"
+    ]
+    for folder in folders:
+        folder_path = os.path.join(wiki_dir, folder)
+        files_count = 0
+        if os.path.exists(folder_path):
+            files_count = len([f for f in os.listdir(folder_path) if f.endswith(".md")])
+        click.echo(f"  - {folder}: {files_count} notes")
+        
+    # Check Obsidian status
+    config = load_config(".")
+    vault_path = config.get("obsidian", {}).get("vault_path", "")
+    if vault_path and os.path.exists(vault_path):
+        click.echo(f"[WIKI] Connected Obsidian Vault: {vault_path}")
+    else:
+        click.echo("[WIKI] Connected Obsidian Vault: None (Standalone mode)")
+
+
+@wiki.command()
+def pending() -> None:
+    """List pending wiki note proposals awaiting approval."""
+    approvals_dir = os.path.join("BBC_Wiki", "Approvals")
+    if not os.path.exists(approvals_dir):
+        click.echo("[WIKI] BBC Wiki is not initialized.")
+        return
+    files = [f for f in os.listdir(approvals_dir) if f.endswith(".md") and not f.startswith("rejected")]
+    if not files:
+        click.echo("[WIKI] No pending proposals.")
+        return
+    click.echo("[WIKI] Pending Note Proposals:")
+    for f in files:
+        click.echo(f"  - {f}")
+
+
+@wiki.command()
+@click.argument("note_id")
+def approve(note_id: str) -> None:
+    """Approve a wiki note proposal and promote it to semantic memory."""
+    if not note_id.endswith(".md"):
+        note_id += ".md"
+    src_path = os.path.join("BBC_Wiki", "Approvals", note_id)
+    if not os.path.exists(src_path):
+        click.echo(f"[WIKI] Note proposal '{note_id}' not found.")
+        return
+        
+    # Parse type from note content or default to Executions
+    note_type = "Executions"
     try:
-        os.makedirs(vault_path, exist_ok=True)
-        with open(os.path.join(vault_path, "Design.md"), "w", encoding="utf-8") as f:
-            f.write("# Design note\nTags: design\n")
-            
-        records = gateway.index_vault("main_vault")
-        click.echo(f"[OBSIDIAN] Indexed vault main_vault. Found {len(records)} note records.")
-        click.echo("[OBSIDIAN] Connection established successfully.")
+        with open(src_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        for line in content.splitlines():
+            if line.startswith("type:"):
+                note_type = line.split(":", 1)[1].strip() + "s"
+                break
+    except Exception:
+        pass
+        
+    # Standardize target folder name
+    if note_type not in ["Decisions", "Architecture", "Executions", "Failures", "Replays", "Lessons_Learned"]:
+        note_type = "Executions"
+        
+    dst_dir = os.path.join("BBC_Wiki", note_type)
+    os.makedirs(dst_dir, exist_ok=True)
+    dst_path = os.path.join(dst_dir, note_id)
+    
+    # Update status to APPROVED in note content
+    try:
+        with open(src_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace("status: PROPOSED", "status: APPROVED")
+        with open(dst_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.remove(src_path)
     except Exception as e:
-        click.echo(f"[OBSIDIAN] Connection failed: {e}")
+        click.echo(f"[WIKI] Promotion failed: {e}")
+        return
+        
+    # Load and save semantic memory
+    memory_manager = load_memory_manager(".")
+    record_params = {
+        "memory_id": f"wiki_{note_id.replace('.md', '')}",
+        "trace_id": "tr_wiki",
+        "replay_id": "rp_wiki",
+        "deterministic_hash": f"hash_wiki_{int(time.time())}",
+        "originating_agent": "system",
+        "layer": "semantic",
+        "data": {"content": content, "type": note_type, "note_id": note_id}
+    }
+    memory_manager.create_record(record_params, actor_role="human")
+    save_memory_manager(memory_manager, ".")
+    
+    # Also write to connected Obsidian vault if present
+    config = load_config(".")
+    vault_path = config.get("obsidian", {}).get("vault_path", "")
+    if vault_path and os.path.exists(vault_path):
+        try:
+            obs_dst_dir = os.path.join(vault_path, "BBC_Wiki", note_type)
+            os.makedirs(obs_dst_dir, exist_ok=True)
+            with open(os.path.join(obs_dst_dir, note_id), "w", encoding="utf-8") as f:
+                f.write(content)
+            # Remove from approvals in obsidian vault
+            obs_src = os.path.join(vault_path, "BBC_Wiki", "Approvals", note_id)
+            if os.path.exists(obs_src):
+                os.remove(obs_src)
+        except Exception:
+            pass
+            
+    click.echo(f"[WIKI] Note '{note_id}' approved and promoted to 'BBC_Wiki/{note_type}/'.")
+    click.echo("[WIKI] Registered note to semantic memory layer.")
+
+
+@wiki.command()
+@click.argument("note_id")
+def reject(note_id: str) -> None:
+    """Reject a wiki note proposal."""
+    if not note_id.endswith(".md"):
+        note_id += ".md"
+    src_path = os.path.join("BBC_Wiki", "Approvals", note_id)
+    if not os.path.exists(src_path):
+        click.echo(f"[WIKI] Note proposal '{note_id}' not found.")
+        return
+        
+    # Move note to rejected/ or rename to rejected
+    rej_dir = os.path.join("BBC_Wiki", "Approvals", "rejected")
+    os.makedirs(rej_dir, exist_ok=True)
+    dst_path = os.path.join(rej_dir, note_id)
+    
+    try:
+        with open(src_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace("status: PROPOSED", "status: REJECTED")
+        with open(dst_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.remove(src_path)
+    except Exception as e:
+        click.echo(f"[WIKI] Rejection failed: {e}")
+        return
+        
+    # Also remove from connected Obsidian vault if present
+    config = load_config(".")
+    vault_path = config.get("obsidian", {}).get("vault_path", "")
+    if vault_path and os.path.exists(vault_path):
+        try:
+            obs_rej_dir = os.path.join(vault_path, "BBC_Wiki", "Approvals", "rejected")
+            os.makedirs(obs_rej_dir, exist_ok=True)
+            with open(os.path.join(obs_rej_dir, note_id), "w", encoding="utf-8") as f:
+                f.write(content)
+            obs_src = os.path.join(vault_path, "BBC_Wiki", "Approvals", note_id)
+            if os.path.exists(obs_src):
+                os.remove(obs_src)
+        except Exception:
+            pass
+            
+    click.echo(f"[WIKI] Note '{note_id}' rejected and moved to 'Approvals/rejected/'.")
+
+
+@wiki.command(name="open")
+def wiki_open() -> None:
+    """Open the local BBC_Wiki directory."""
+    wiki_path = os.path.abspath("BBC_Wiki")
+    if not os.path.exists(wiki_path):
+        click.echo("[WIKI] BBC Wiki is not initialized.")
+        return
+    click.echo(f"[WIKI] Opening BBC Wiki directory: {wiki_path}")
+    try:
+        os.startfile(wiki_path)
+    except Exception:
+        click.echo("[WIKI] Auto-open is supported on Windows. Directory path printed above.")
+
+
 
 cli.add_command(obsidian)
+cli.add_command(wiki)
 
 if __name__ == "__main__":
     cli()

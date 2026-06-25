@@ -39,6 +39,48 @@ bbc ask "add jwt authentication"
 
 ---
 
+## 4.5. How BBC-AOS Works After Installation
+
+Once installed, BBC-AOS operates as a non-intrusive sidecar for your codebase. It establishes two distinct workspaces:
+
+1. **`.bbc/` (Silent Runtime Folder)**:
+   * This is the internal runtime database of BBC-AOS.
+   * Stores the semantic memory map (`memory_db.json`), configuration (`config.json`), indexes, state checkpoints, and detailed agent execution logs.
+   * **Developers do not edit this folder.** It is managed entirely by the CLI.
+
+2. **`BBC_Wiki/` (Human-Readable Project Memory)**:
+   * Automatically generated via `bbc wiki init`.
+   * Organized into directories: `Decisions/`, `Architecture/`, `Executions/`, `Failures/`, `Replays/`, `Approvals/`, and `Lessons_Learned/`.
+   * Contains clean, readable Markdown notes documenting agent choices, system faults, and code modifications.
+   * Can be opened directly in **Obsidian** as a local vault.
+
+### The Background Agent Loop & Limitations
+* BBC-AOS runs agent tasks in a transaction-safe manner.
+* **Health-Based Safeguards**: Subsystem health checks are enforced continuously. If any component degrades, execution halts instantly.
+* **Heal Budget Limits**: To prevent runaway loops or infinite retries (which inflate token costs), the execution loop is bound by a strict pre-allocated `heal_budget` (e.g., 100 or 1000). If the budget is exhausted, the transaction is rejected and rolled back.
+
+### Example Run: The JWT Authentication Scenario
+Here is the actual CLI output when running a task:
+```
+$ bbc ask "add jwt authentication"
+[ASK] Running Agent Orchestration for request: 'add jwt authentication'
+[ASK] Spawning AgentOrchestrator E2E execution pipeline...
+[DIFF ENGINE] No files in blast radius – generating empty diff.
+[ASK] Pipeline status: COMPLETED
+[ASK] PlannerAgent successfully decomposed the goal.
+[ASK] ContextAgent resolved task blast radius.
+[ASK] CoderAgent produced unified code diffs.
+[ASK] TesterAgent completed test specifications.
+[ASK] VerificationAgent audited code safety and imports.
+[ASK] Verification Verdict: APPROVED (Risk: LOW)
+[ASK] Low risk transaction. Auto-approving...
+[ASK] Transaction completed successfully. Commit Hash: 16c953865c1fdae830f5a22d22a6902cb9870ee5875fa966a21ff74410da56f8
+[ASK] Created BBC Wiki note proposal: BBC_Wiki/Approvals/prop_rp_1782377853.md
+[ASK] Copied proposal note to connected Obsidian vault approvals.
+```
+
+---
+
 ## 5. Architecture Overview
 
 BBC-AOS separates execution concerns into sequential agent stages and transaction controllers:
@@ -86,21 +128,36 @@ Audit logs record byte-for-byte state transitions. Re-running a task with the re
 
 ## 9. Obsidian Integration
 
-Connects your code memory with your Obsidian knowledge vault:
-* Configure your vault path: `bbc obsidian connect /path/to/vault`
-* Promoted code designs are exported as markdown files containing frontmatter tags.
+BBC-AOS integrates directly with your Obsidian workspace for interactive note review:
+* **Connection command**: Link your vault path with `bbc obsidian connect <vault_path>`.
+* **Status command**: Check active connection using `bbc obsidian status`.
+* **Disconnect command**: Unlink using `bbc obsidian disconnect`.
+* **Note Promotion Rules**: Notes are promoted to semantic layers based on frontmatter tags (e.g. `#promotion-ready`, `#core-spec`).
 
 ---
 
 ## 10. CLI Reference
 
+### Workspace & Execution
 * `bbc init`: Initialize a new BBC-AOS workspace.
 * `bbc index <path>`: Index codebase symbols and compile the semantic memory map.
 * `bbc ask "<query>"`: Run E2E orchestrator pipeline for a task.
 * `bbc doctor`: Verify health check parameters across all subsystems.
 * `bbc replay <replay_id>`: Reconstruct events from audit log.
 * `bbc benchmark`: Execute performance and token compression benchmarks.
-* `bbc obsidian connect <vault_path>`: Connect local vault.
+
+### Obsidian Connection
+* `bbc obsidian connect <vault_path>`: Connect local Obsidian vault.
+* `bbc obsidian status`: Display active Obsidian connection status.
+* `bbc obsidian disconnect`: Disconnect current Obsidian vault.
+
+### BBC Wiki
+* `bbc wiki init`: Initialize local `BBC_Wiki/` directory structure.
+* `bbc wiki status`: Show note counts and current connection status.
+* `bbc wiki pending`: List pending wiki proposals waiting for approval.
+* `bbc wiki approve <note_id>`: Approve a proposal and promote it to active wiki memory.
+* `bbc wiki reject <note_id>`: Reject a proposal and move it to rejected archive.
+* `bbc wiki open`: Open local `BBC_Wiki/` directory in system explorer.
 
 ---
 
@@ -109,6 +166,8 @@ Connects your code memory with your Obsidian knowledge vault:
 * **Fail-Closed Execution**: Any compiler error or safety rule violation immediately halts execution.
 * **Immutable Working Checkpoints**: Temporary changes are stored in isolated sandboxes and rolled back on failures.
 * **Human-in-the-Loop Approval**: Medium, High, and Critical risk tasks are blocked by a commit manager pending developer sign-off.
+* **Semantic Verification Gate**: The verification agent performs structural AST analysis to ensure no imports or symbol boundaries are violated.
+
 
 ---
 
