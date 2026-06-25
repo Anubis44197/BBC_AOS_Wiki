@@ -9,6 +9,8 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -35,7 +37,14 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest
+          pytest > pytest_fail.log 2>&1 || {
+            git config --global user.email "ci-bot@example.com"
+            git config --global user.name "CI Bot"
+            git add pytest_fail.log
+            git commit -m "chore: record pytest failure log [skip ci]"
+            git push origin main
+            exit 1
+          }
 
       - name: Build Package
         run: |
