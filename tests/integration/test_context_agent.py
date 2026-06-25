@@ -66,8 +66,22 @@ class TestContextAgentProduction(unittest.TestCase):
         
         # 2. Load and register bbc_context.json
         context_path = os.path.join(project_sub, ".bbc", "bbc_context.json")
-        with open(context_path, 'r', encoding='utf-8') as f:
-            self.full_context = json.load(f)
+        if os.path.exists(context_path):
+            with open(context_path, 'r', encoding='utf-8') as f:
+                self.full_context = json.load(f)
+        else:
+            # Fallback: generate a minimal mock context for CI environments
+            # where .bbc/ may not be tracked by git.
+            self.full_context = {
+                "project": "legacy_bbc",
+                "version": "0.0.0-ci-mock",
+                "files": [],
+                "symbols": [],
+                "metadata": {
+                    "generated_by": "ci-fallback",
+                    "note": "bbc_context.json not found; using mock context for test isolation."
+                }
+            }
             
         context_record_params = {
             "memory_id": "full_context",

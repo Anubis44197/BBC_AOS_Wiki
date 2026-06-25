@@ -9,8 +9,6 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -37,15 +35,7 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest > pytest_output.txt 2>&1 || {
-            git config --global user.email "ci-bot@example.com"
-            git config --global user.name "CI Bot"
-            git checkout -b ci-log
-            git add pytest_output.txt
-            git commit -m "chore: record pytest failure log"
-            git push origin ci-log --force
-            exit 1
-          }
+          pytest -v
 
       - name: Build Package
         run: |
@@ -54,3 +44,4 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build -t bbc-aos:latest .
+

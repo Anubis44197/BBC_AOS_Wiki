@@ -1,0 +1,3399 @@
+{
+  "bbc_instructions_version": "1.0",
+  "context_schema_version": "8.5",
+  "generated_at": "2026-06-17T17:31:01",
+  "context_fresh": true,
+  "fail_policy": "fail_closed",
+  "enforcement_level": "strict",
+  "project_skeleton": {
+    "root": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main",
+    "file_count": 66,
+    "hierarchy": [
+      "BBC_TECHNICAL_REFERENCE_EN.md",
+      "QUICK_START.md",
+      "README.md",
+      "USER_GUIDE.md",
+      "YAPILANLAR.md",
+      "bbc.py",
+      "bbc_daemon.py",
+      "bbc_installer.py",
+      "run_bbc.py",
+      "setup.py",
+      "bbc_core\\__init__.py",
+      "bbc_core\\__main__.py",
+      "bbc_core\\adapter.py",
+      "bbc_core\\adaptive_mode.py",
+      "bbc_core\\agent_adapter.py",
+      "bbc_core\\ai_integration.py",
+      "bbc_core\\attribution_tracer.py",
+      "bbc_core\\auto_detector.py",
+      "bbc_core\\auto_patcher.py",
+      "bbc_core\\bbc_logger.py",
+      "bbc_core\\bbc_scalar.py",
+      "bbc_core\\change_tracker.py",
+      "bbc_core\\cli.py",
+      "bbc_core\\config.py",
+      "bbc_core\\context_compiler.py",
+      "bbc_core\\context_optimizer.py",
+      "bbc_core\\git_hooks.py",
+      "bbc_core\\global_menu.py",
+      "bbc_core\\global_setup.py",
+      "bbc_core\\hallucination_guard.py",
+      "bbc_core\\hmpu_core.py",
+      "bbc_core\\hmpu_engine.py",
+      "bbc_core\\hmpu_indexer.py",
+      "bbc_core\\hmpu_quantizer.py",
+      "bbc_core\\http_server.py",
+      "bbc_core\\ide_auto_config.py",
+      "bbc_core\\ide_hooks.py",
+      "bbc_core\\ide_parser.py",
+      "bbc_core\\impact_analyzer.py",
+      "bbc_core\\matrix_ops.py",
+      "bbc_core\\memory_store.py",
+      "bbc_core\\migrator_engine.py",
+      "bbc_core\\native_adapter.py",
+      "bbc_core\\project_hygiene.py",
+      "bbc_core\\realtime_token_counter.py",
+      "bbc_core\\scan_profile.py",
+      "bbc_core\\semantic_packer.py",
+      "bbc_core\\state_manager.py",
+      "bbc_core\\symbol_extractor.py",
+      "bbc_core\\symbol_graph.py",
+      "bbc_core\\telemetry.py",
+      "bbc_core\\terminal_monitor.py",
+      "bbc_core\\token_optimizer.py",
+      "bbc_core\\verifier.py",
+      "benchmarks\\README.md",
+      "tests\\conftest.py",
+      "tests\\test_agent_adapter_invariants.py",
+      "tests\\test_auto_detect.py",
+      "tests\\test_bbc_cli_surface.py",
+      "tests\\test_math.py",
+      "tests\\test_new_modules.py",
+      "tests\\test_project_hygiene.py",
+      "tests\\test_scan_profile.py",
+      "tests\\test_server.py",
+      "tests\\test_telemetry.py",
+      "tests\\test_verifier.py"
+    ]
+  },
+  "code_structure": [
+    {
+      "path": "BBC_TECHNICAL_REFERENCE_EN.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5742,
+        "time": 0.0,
+        "lines": 92,
+        "code_lines": 50,
+        "hash": "52ca5920a723a5c3477b32f224503387df204490343744d39941eba4bad9d12e",
+        "tokens": 1485,
+        "bytes": 5777,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "QUICK_START.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 1045,
+        "time": 0.0,
+        "lines": 49,
+        "code_lines": 28,
+        "hash": "e1680e4038fbb3e52e09533cd4b4e70f6cd7e7e99d3996901eb7b098a44b4f06",
+        "tokens": 270,
+        "bytes": 1045,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "README.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7505,
+        "time": 0.0,
+        "lines": 200,
+        "code_lines": 136,
+        "hash": "935a74d425b2f61e36abcf49ecbafa9387a0a0c9fa3e4f66eb270a7de7e7d1ec",
+        "tokens": 1720,
+        "bytes": 7505,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "USER_GUIDE.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 3112,
+        "time": 0.0,
+        "lines": 127,
+        "code_lines": 77,
+        "hash": "40aea5bb84c2ae726132b894b0e06f0d20b4ce45cc4c6f0a9ff4a56eeac1fe71",
+        "tokens": 724,
+        "bytes": 3112,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "YAPILANLAR.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5486,
+        "time": 0.0,
+        "lines": 78,
+        "code_lines": 50,
+        "hash": "538352046c35472736c48c62a678b3fecefe428c767f3bf4d9cc7b52b4453542",
+        "tokens": 1118,
+        "bytes": 5486,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc.py",
+      "structure": {
+        "classes": [
+          "BBCCLI"
+        ],
+        "functions": [
+          "_update_context_freshness",
+          "_print_transaction_report",
+          "__init__",
+          "_signal_handler",
+          "run_command",
+          "init",
+          "benchmark",
+          "_benchmark_report",
+          "integrations",
+          "preview",
+          "_integration_report_for_preview",
+          "rule_health",
+          "security_check",
+          "_scan_secret_markers",
+          "readiness",
+          "_rule_health_report",
+          "mode",
+          "self_test",
+          "record",
+          "start",
+          "_watch_and_report",
+          "watch",
+          "stop",
+          "purge",
+          "install",
+          "serve",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "argparse",
+          "signal",
+          "subprocess",
+          "time",
+          "json",
+          "re",
+          "pathlib",
+          "tempfile",
+          "shutil",
+          "bbc_core.auto_detector",
+          "bbc_core.config",
+          "bbc_core.ide_auto_config",
+          "bbc_core.ide_auto_config",
+          "bbc_core.project_hygiene",
+          "bbc_core.project_hygiene",
+          "bbc_core.agent_adapter",
+          "bbc_core.native_adapter",
+          "bbc_core.verifier",
+          "run_bbc",
+          "run_bbc",
+          "bbc_daemon",
+          "bbc_core.http_server",
+          "uvicorn",
+          "bbc_core.cli",
+          "json",
+          "bbc_core.global_menu",
+          "bbc_core.agent_adapter",
+          "json",
+          "bbc_core.impact_analyzer",
+          "bbc_core.auto_patcher",
+          "bbc_core.git_hooks",
+          "json",
+          "bbc_core.telemetry"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 66185,
+        "time": 0.004805326461791992,
+        "lines": 1416,
+        "code_lines": 1214,
+        "hash": "c22e294735ee0d9e52bad8e1d0dac9e4037d618d04546ea820e636e8d492da94",
+        "tokens": 14659,
+        "bytes": 66226,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_daemon.py",
+      "structure": {
+        "classes": [
+          "BBCDaemon"
+        ],
+        "functions": [
+          "__init__",
+          "_signal_handler",
+          "_log",
+          "_write_pid",
+          "_remove_pid",
+          "_is_running",
+          "start",
+          "stop",
+          "status",
+          "_scan_project_files",
+          "_run_reanalysis",
+          "_run_reanalysis_subprocess",
+          "_run_daemon_loop",
+          "update_mtime_cache",
+          "_update_config",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "time",
+          "json",
+          "signal",
+          "threading",
+          "pathlib",
+          "datetime",
+          "typing",
+          "ctypes",
+          "subprocess",
+          "asyncio",
+          "os",
+          "bbc_core.cli",
+          "bbc_core.agent_adapter",
+          "subprocess",
+          "bbc_core.auto_detector",
+          "bbc_core.ide_hooks",
+          "bbc_core.hmpu_core"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 17635,
+        "time": 0.0,
+        "lines": 450,
+        "code_lines": 360,
+        "hash": "08f9aa3a1a635c38e7385f4723deb98df3b0017c69698a8a77ef2f62e4a45805",
+        "tokens": 3543,
+        "bytes": 17694,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_installer.py",
+      "structure": {
+        "classes": [
+          "BBCInstaller"
+        ],
+        "functions": [
+          "__init__",
+          "install_bbc",
+          "_validate_project",
+          "_copy_bbc_files",
+          "_install_dependencies",
+          "_adapt_project",
+          "_finalize_installation",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "json",
+          "shutil",
+          "subprocess",
+          "pathlib",
+          "datetime",
+          "typing",
+          "bbc_core.config"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 12303,
+        "time": 0.0,
+        "lines": 340,
+        "code_lines": 250,
+        "hash": "f90846f59cdf735e0a141380c1807e26f7aee448b201fea2f380ec4b52ad216b",
+        "tokens": 2752,
+        "bytes": 12329,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "run_bbc.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "run_engine_cli",
+          "run_post_analysis_checks",
+          "_resolve_project_path",
+          "print_transaction_report"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "platform",
+          "json",
+          "rich.console",
+          "rich.panel",
+          "rich.table",
+          "rich",
+          "bbc_core.cli",
+          "bbc_core.verifier",
+          "bbc_core.config",
+          "_analyze_telemetry_matrix",
+          "bbc_core.config",
+          "bbc_core.config",
+          "bbc_core.hmpu_core",
+          "bbc_core.realtime_token_counter",
+          "bbc_core.realtime_token_counter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 8958,
+        "time": 0.0,
+        "lines": 239,
+        "code_lines": 178,
+        "hash": "d6e6e12d53655bbbfce2d2730ad1642b54de5adf072dbf4ea3aabd2b5ec81b87",
+        "tokens": 2207,
+        "bytes": 8991,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "setup.py",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [
+          "setuptools",
+          "os"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2104,
+        "time": 0.0,
+        "lines": 59,
+        "code_lines": 52,
+        "hash": "319b684182ee3426c1b24ec73ab5d478ff6a23d298a96e18f81f332dbe067219",
+        "tokens": 498,
+        "bytes": 2104,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\__init__.py",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [
+          ".agent_adapter",
+          ".adaptive_mode"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 423,
+        "time": 0.0,
+        "lines": 21,
+        "code_lines": 18,
+        "hash": "5808dd062c55f1d51ecff9e3b83789334329e9c1da8d96a21b47516929725636",
+        "tokens": 113,
+        "bytes": 423,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\__main__.py",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [
+          "argparse",
+          "asyncio",
+          "json",
+          "sys",
+          ".native_adapter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 1485,
+        "time": 0.0,
+        "lines": 39,
+        "code_lines": 30,
+        "hash": "df3d14cde687af618167388488797a802dbb5d7650226a017e2e65796f6917d3",
+        "tokens": 338,
+        "bytes": 1485,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\adapter.py",
+      "structure": {
+        "classes": [
+          "BBCNativeAdapter"
+        ],
+        "functions": [
+          "__init__",
+          "get_stats",
+          "get_stats_tool"
+        ],
+        "imports": [
+          "json",
+          "asyncio",
+          ".native_adapter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2590,
+        "time": 0.0,
+        "lines": 68,
+        "code_lines": 49,
+        "hash": "bfe26984681ebbb36bbfb13d9146a8c8bdb004f335bd0d425be0b36c07e96b11",
+        "tokens": 591,
+        "bytes": 2599,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\adaptive_mode.py",
+      "structure": {
+        "classes": [
+          "Mode",
+          "BBCViolation",
+          "SymbolReference",
+          "AdaptiveResponse",
+          "BBCAdaptiveMode"
+        ],
+        "functions": [
+          "__init__",
+          "to_dict",
+          "to_json",
+          "__init__",
+          "_load_context",
+          "detect_mode",
+          "verify_file_hash",
+          "check_context_freshness",
+          "get_impact_radius",
+          "_resolve_key",
+          "_walk",
+          "find_symbol",
+          "validate_statement",
+          "answer",
+          "process_query",
+          "adaptive_mode_query"
+        ],
+        "imports": [
+          "json",
+          "re",
+          "os",
+          "typing",
+          "dataclasses",
+          "enum",
+          "pathlib",
+          "hashlib"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 20212,
+        "time": 0.0,
+        "lines": 600,
+        "code_lines": 477,
+        "hash": "36942b5398673f2ccc13609d2ea4824087a774beae8f793b6b45e874bf4cf8f4",
+        "tokens": 4014,
+        "bytes": 20221,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\agent_adapter.py",
+      "structure": {
+        "classes": [
+          "BBCAgentAdapter",
+          "MinimalAdapter"
+        ],
+        "functions": [
+          "__init__",
+          "extract_symbols",
+          "to_copilot_prompt",
+          "to_cursor_context",
+          "to_gemini_context",
+          "to_kilo_context",
+          "to_vscode_context",
+          "to_generic_context",
+          "compute_hash",
+          "verify_determinism",
+          "export",
+          "inject_to_project",
+          "_manifest_path",
+          "_load_manifest",
+          "_save_manifest",
+          "_sha256_text",
+          "_record",
+          "_write_config",
+          "get_instructions",
+          "_ext_json",
+          "_static_task_for_format",
+          "_task_for_format",
+          "_get_optimized_context_path",
+          "_adapter_for_format",
+          "_context_ref_for_format",
+          "_render_tool_content",
+          "_build_context_md",
+          "shield_git_isolation",
+          "cleanup_injected_configs",
+          "_safe_under_root",
+          "run_adapter_validation",
+          "__init__"
+        ],
+        "imports": [
+          "json",
+          "hashlib",
+          "os",
+          "typing",
+          "pathlib",
+          "pathlib",
+          "datetime",
+          "bbc_core.config",
+          "bbc_core.context_compiler",
+          "bbc_core.ide_auto_config",
+          "bbc_core.ide_auto_config",
+          "shutil",
+          "being",
+          "pathlib",
+          "shutil",
+          "sys"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 65466,
+        "time": 0.012888669967651367,
+        "lines": 1512,
+        "code_lines": 1195,
+        "hash": "febbef8b3b11619e84fa10d200d0b54779e61d8cb08c67ded56eeb96a8afd116",
+        "tokens": 14341,
+        "bytes": 65490,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\ai_integration.py",
+      "structure": {
+        "classes": [
+          "BBCAIIntegration"
+        ],
+        "functions": [
+          "__init__",
+          "_ensure_project_adapted",
+          "_auto_adapt_project",
+          "_sync_unified_metrics",
+          "start_ai_request",
+          "update_progress",
+          "end_ai_request",
+          "_save_session_summary",
+          "get_bbc_integration",
+          "start_ai_session",
+          "update_ai_progress",
+          "end_ai_session"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "json",
+          "atexit",
+          "datetime",
+          "typing",
+          "pathlib",
+          ".realtime_token_counter",
+          ".terminal_monitor",
+          "subprocess"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 9108,
+        "time": 0.0,
+        "lines": 241,
+        "code_lines": 183,
+        "hash": "80865f4340401fdbe5dbce26cbd188df6d5de7946107a5d435aa5c1934966756",
+        "tokens": 1967,
+        "bytes": 9108,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\attribution_tracer.py",
+      "structure": {
+        "classes": [
+          "AttributionTracer"
+        ],
+        "functions": [
+          "__init__",
+          "scan_project",
+          "_extract_definitions",
+          "_find_references",
+          "trace_impact"
+        ],
+        "imports": [
+          "re",
+          "os",
+          "collections",
+          ".scan_profile"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 4847,
+        "time": 0.0,
+        "lines": 109,
+        "code_lines": 75,
+        "hash": "e6906ca7eeb9a48c388222f8dcb4967392d1b7d022cd4a38605ca80cf8e81153",
+        "tokens": 1218,
+        "bytes": 4920,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\auto_detector.py",
+      "structure": {
+        "classes": [
+          "BBCAutoDetector"
+        ],
+        "functions": [
+          "__init__",
+          "detect_project_type",
+          "check_bbc_installed",
+          "auto_install_bbc",
+          "start_bbc_monitoring",
+          "stop_bbc_monitoring",
+          "auto_detect_and_start",
+          "_is_project_directory",
+          "_log_session",
+          "start_background_monitoring",
+          "monitor_loop",
+          "get_auto_detector",
+          "auto_start_bbc",
+          "start_background_monitoring",
+          "stop_bbc_auto"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "json",
+          "time",
+          "threading",
+          "pathlib",
+          "datetime",
+          "typing",
+          "itertools",
+          ".config",
+          "subprocess",
+          "bbc_core.agent_adapter",
+          "bbc_core.ai_integration",
+          "bbc_core.ai_integration",
+          "bbc_core.terminal_monitor"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 12624,
+        "time": 0.0020074844360351562,
+        "lines": 309,
+        "code_lines": 237,
+        "hash": "ee981c534e692ab3c6b755b63755cf04f08aa09eff0b60e7dbf4920865f3ca70",
+        "tokens": 2579,
+        "bytes": 12628,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\auto_patcher.py",
+      "structure": {
+        "classes": [
+          "PatchAction",
+          "AutoPatcher"
+        ],
+        "functions": [
+          "__init__",
+          "to_dict",
+          "__init__",
+          "_load_context",
+          "_calculate_chaos",
+          "detect_unused_imports",
+          "detect_degenerate_patterns",
+          "detect_symbol_drift",
+          "generate_patches",
+          "_backup_file",
+          "apply_patch",
+          "analyze_and_patch"
+        ],
+        "imports": [
+          "json",
+          "math",
+          "os",
+          "re",
+          "shutil",
+          "time",
+          "collections",
+          "typing",
+          "datetime",
+          ".bbc_scalar"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 15351,
+        "time": 0.0,
+        "lines": 394,
+        "code_lines": 307,
+        "hash": "6eecef92a23cf8a941d9a8415cf5651798ad5439a4011fbf02ff6d56457e3b61",
+        "tokens": 3552,
+        "bytes": 15903,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\bbc_logger.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "_init_logging",
+          "get_logger",
+          "get_log_dir"
+        ],
+        "imports": [
+          ".bbc_logger",
+          "logging",
+          "os",
+          "sys"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2444,
+        "time": 0.0,
+        "lines": 83,
+        "code_lines": 60,
+        "hash": "387108ff2128f64409ecb807d63e791445b4f176b312a17338ebea03eabac18e",
+        "tokens": 630,
+        "bytes": 2493,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\bbc_scalar.py",
+      "structure": {
+        "classes": [
+          "BBCScalar",
+          "OmegaOperator",
+          "BBCEncoder"
+        ],
+        "functions": [
+          "__init__",
+          "origin",
+          "__repr__",
+          "__float__",
+          "__eq__",
+          "__hash__",
+          "__lt__",
+          "__gt__",
+          "__le__",
+          "__ge__",
+          "_determine_new_state",
+          "_merge_origin",
+          "_build_result_metadata",
+          "__add__",
+          "__radd__",
+          "__sub__",
+          "__rsub__",
+          "__mul__",
+          "__rmul__",
+          "__truediv__",
+          "enter_neg_zero",
+          "resolve_neg_zero",
+          "to_dict",
+          "from_dict",
+          "trigger",
+          "default",
+          "bbc_hook",
+          "bbc_data_ingestion"
+        ],
+        "imports": [
+          "json"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 9270,
+        "time": 0.0,
+        "lines": 244,
+        "code_lines": 202,
+        "hash": "211a07027ae97c1121560f897a48378623605fdf7dd108f072de31ebd7ec37db",
+        "tokens": 2224,
+        "bytes": 9273,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\change_tracker.py",
+      "structure": {
+        "classes": [
+          "ChangeTracker"
+        ],
+        "functions": [
+          "__init__",
+          "load_previous_index",
+          "scan_current_state",
+          "compute_diff",
+          "get_affected_files",
+          "save_index",
+          "load_segments",
+          "save_segments",
+          "merge_segments",
+          "diff_summary",
+          "has_previous_index"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "hashlib",
+          "time",
+          "typing",
+          ".config",
+          ".scan_profile"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7578,
+        "time": 0.0,
+        "lines": 188,
+        "code_lines": 147,
+        "hash": "764779ddf32041ec9f3f86cec612b988ae7db6b7356ddb1eaad3295902c54687",
+        "tokens": 1604,
+        "bytes": 7580,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\cli.py",
+      "structure": {
+        "classes": [
+          "BBCCLI"
+        ],
+        "functions": [
+          "count_tokens",
+          "auto_calibrate_tokens",
+          "__init__",
+          "_is_context_stale",
+          "_get_project_snapshot_path",
+          "_collect_project_fingerprint",
+          "_write_project_snapshot",
+          "audit_bbc_traces",
+          "clean_system",
+          "purge_bbc",
+          "_ensure_init",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "argparse",
+          "asyncio",
+          "sys",
+          "time",
+          "typing",
+          "tiktoken",
+          "bbc_core.native_adapter",
+          "bbc_core.bbc_scalar",
+          "bbc_core.config",
+          "bbc_core.token_optimizer",
+          "bbc_core.ide_auto_config",
+          "bbc_core.ide_parser",
+          ".change_tracker",
+          "bbc_core.config",
+          "shutil",
+          "glob",
+          "time",
+          "bbc_core.config",
+          "shutil",
+          "bbc_core.agent_adapter",
+          "bbc_core.config",
+          "sys",
+          "bbc_core.migrator_engine",
+          "bbc_core.verifier",
+          "bbc_core.telemetry",
+          "bbc_core.semantic_packer",
+          "bbc_core.context_compiler",
+          "bbc_core.impact_analyzer",
+          "bbc_core.auto_patcher",
+          "bbc_core.project_hygiene",
+          "bbc_core.project_hygiene",
+          "bbc_core.project_hygiene",
+          "bbc_core.agent_adapter",
+          "bbc_core.agent_adapter",
+          "bbc_core.agent_adapter",
+          "bbc_core.agent_adapter",
+          "bbc_core.adaptive_mode",
+          "bbc_core.hallucination_guard",
+          "bbc_core.memory_store",
+          "bbc_core.memory_store",
+          "bbc_core.ide_auto_config",
+          "bbc_core.ide_parser"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 80078,
+        "time": 0.0,
+        "lines": 1738,
+        "code_lines": 1427,
+        "hash": "ec61174a5cc252e68730b83c57ae7d162e91822e9343960ea93dbe756d64bdf2",
+        "tokens": 18108,
+        "bytes": 80173,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\config.py",
+      "structure": {
+        "classes": [
+          "BBCConfig"
+        ],
+        "functions": [
+          "get_bbc_dir",
+          "get_context_path",
+          "setup_logging",
+          "check_state_drift"
+        ],
+        "imports": [
+          "os",
+          ".bbc_logger"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 3321,
+        "time": 0.0,
+        "lines": 90,
+        "code_lines": 71,
+        "hash": "229debe022680a0e1c6662d5a38fa3064cb8d794459e8d9391413f764adde00d",
+        "tokens": 787,
+        "bytes": 3333,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\context_compiler.py",
+      "structure": {
+        "classes": [
+          "TaskContextCompiler"
+        ],
+        "functions": [
+          "__init__",
+          "compile",
+          "_get_direct_deps",
+          "_get_reverse_deps",
+          "_get_transitive_deps",
+          "save_compiled"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "time",
+          "hashlib",
+          "typing",
+          ".config"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 14644,
+        "time": 0.0,
+        "lines": 336,
+        "code_lines": 262,
+        "hash": "54eee00641c879124f767ecfb57fd56aae92b8b876ef16d235f7eab28f5744cc",
+        "tokens": 3143,
+        "bytes": 14656,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\context_optimizer.py",
+      "structure": {
+        "classes": [
+          "ImpactLevel",
+          "ContextOptimizerError",
+          "ContextReductionError",
+          "SymbolResolutionResult",
+          "SymbolResolver",
+          "SymbolImpact",
+          "ContextDecision",
+          "BlastRadiusAnalyzer",
+          "ContextOptimizer"
+        ],
+        "functions": [
+          "to_dict",
+          "__init__",
+          "_build_short_name_index",
+          "_build_graph_metrics",
+          "resolve",
+          "_resolve_by_graph_score",
+          "get_all_short_names",
+          "to_dict",
+          "to_dict",
+          "__init__",
+          "_build_called_by_index",
+          "analyze",
+          "_calculate_impact_score",
+          "_depth_to_level",
+          "__init__",
+          "optimize",
+          "_limit_category",
+          "_generate_safety_rules",
+          "_detect_cycles",
+          "_calculate_reduction_ratio",
+          "_empty_decision",
+          "_unresolved_decision",
+          "_ambiguous_decision",
+          "compare_targets",
+          "export_decision",
+          "_format_decision_text",
+          "main"
+        ],
+        "imports": [
+          "json",
+          "dataclasses",
+          "typing",
+          "enum",
+          "pathlib",
+          "argparse"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 36034,
+        "time": 0.0,
+        "lines": 921,
+        "code_lines": 681,
+        "hash": "05c1b01f0c30df9e948b19a3e1f887dc42595b9dd48ee2e39f9a92e29fa6f1d0",
+        "tokens": 8893,
+        "bytes": 36712,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\git_hooks.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "install_hooks",
+          "remove_hooks"
+        ],
+        "imports": [
+          "os",
+          "stat",
+          "sys",
+          "pathlib"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5098,
+        "time": 0.0,
+        "lines": 153,
+        "code_lines": 115,
+        "hash": "c5d81e1a7dd9a062deaafc91b88e3e51a1dff204e7025ee6562f9fbf304eee0d",
+        "tokens": 1258,
+        "bytes": 5153,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\global_menu.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "load_token_stats",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "json",
+          "subprocess",
+          "codecs"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5270,
+        "time": 0.0,
+        "lines": 133,
+        "code_lines": 111,
+        "hash": "ad07e44acf9941c59456811e89a82e0f745bfe96ce90df931b147d21282c330b",
+        "tokens": 1212,
+        "bytes": 5270,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\global_setup.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "get_global_rules_dir",
+          "is_setup_done",
+          "generate_rules",
+          "configure_vscode"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "platform",
+          "pathlib"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7946,
+        "time": 0.0,
+        "lines": 197,
+        "code_lines": 139,
+        "hash": "397ba23610885e77d52899d15715ef69f5d83b01e0aa15c89af3332f6b87e478",
+        "tokens": 1958,
+        "bytes": 8046,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\hallucination_guard.py",
+      "structure": {
+        "classes": [
+          "HallucinationGuard"
+        ],
+        "functions": [
+          "__init__",
+          "_calculate_chaos",
+          "_extract_referenced_symbols",
+          "_detect_speculative_language",
+          "check"
+        ],
+        "imports": [
+          "json",
+          "math",
+          "os",
+          "re",
+          "collections",
+          "typing",
+          ".bbc_scalar",
+          ".hmpu_core"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 10814,
+        "time": 0.0,
+        "lines": 245,
+        "code_lines": 193,
+        "hash": "95dff0614220bf195b9f04932159df82a2a7cefa7a70f83af702853bbfeee251",
+        "tokens": 2839,
+        "bytes": 10941,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\hmpu_core.py",
+      "structure": {
+        "classes": [
+          "HMPU_Governor"
+        ],
+        "functions": [
+          "__init__",
+          "_origin_from_scalar",
+          "_load_weights",
+          "_save_weights",
+          "get_field_stability",
+          "_calculate_chaos",
+          "chaos_derivative_filter",
+          "aura_field_score",
+          "self_heal_protocol",
+          "aura_gradient_bend",
+          "pulse_perturbation_sim",
+          "focus_projection"
+        ],
+        "imports": [
+          "math",
+          "time",
+          "json",
+          "os",
+          "threading",
+          "collections",
+          "typing",
+          ".bbc_scalar",
+          ".matrix_ops",
+          ".state_manager"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 11849,
+        "time": 0.0,
+        "lines": 290,
+        "code_lines": 234,
+        "hash": "0adc150ecbaa757cd2d7f74edab82a00fc026459df59e7290dd8f0803cd4e642",
+        "tokens": 2800,
+        "bytes": 11887,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\hmpu_engine.py",
+      "structure": {
+        "classes": [
+          "RecipeConstraint",
+          "BaseRecipe",
+          "CodeStructureRecipe",
+          "LogTelemetryRecipe",
+          "ConfigJsonRecipe",
+          "DocumentationRecipe",
+          "MultiRecipePipeline",
+          "HMPUEngine"
+        ],
+        "functions": [
+          "__init__",
+          "_trigger_cvp",
+          "filter_output",
+          "__init__",
+          "__init__",
+          "__init__",
+          "extract_structure",
+          "__init__",
+          "__init__",
+          "_segment_content",
+          "__init__",
+          "_initialize",
+          "_adjust_constraints_by_aura",
+          "get_aura_confidence"
+        ],
+        "imports": [
+          "json",
+          "logging",
+          "datetime",
+          "pathlib",
+          "typing",
+          "dataclasses",
+          "bbc_core.state_manager",
+          "re",
+          "sys",
+          "json",
+          ".hmpu_core",
+          "math"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 27718,
+        "time": 0.000881195068359375,
+        "lines": 671,
+        "code_lines": 535,
+        "hash": "390cec5ab01bcf4940b232588539a173d780b33d145f1fa6da7809a03d9b6d4e",
+        "tokens": 5888,
+        "bytes": 27718,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\hmpu_indexer.py",
+      "structure": {
+        "classes": [
+          "HMPUIndexer"
+        ],
+        "functions": [
+          "compute_simhash",
+          "hamming_distance",
+          "similarity_score",
+          "__init__",
+          "compute_bbc_simhash",
+          "add_to_index",
+          "add_document",
+          "search_similar",
+          "search",
+          "finalize_and_save",
+          "load_index",
+          "get_stats"
+        ],
+        "imports": [
+          "json",
+          "time",
+          "hashlib",
+          "pathlib",
+          ".bbc_scalar"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 11243,
+        "time": 0.0,
+        "lines": 325,
+        "code_lines": 250,
+        "hash": "21f97fbcf7fbd007e67f6c39cbeb2387795b895d93bdb38f225eb0bf98e62ad7",
+        "tokens": 2705,
+        "bytes": 11284,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\hmpu_quantizer.py",
+      "structure": {
+        "classes": [
+          "HMPUQuantizer"
+        ],
+        "functions": [
+          "__init__",
+          "detect_language",
+          "process_content"
+        ],
+        "imports": [
+          "re",
+          "time"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7112,
+        "time": 0.0,
+        "lines": 158,
+        "code_lines": 134,
+        "hash": "6ecf34348401f11ebf947dda00eec8397a2075db76ba6b4627181a4c7628ce5f",
+        "tokens": 2059,
+        "bytes": 7126,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\http_server.py",
+      "structure": {
+        "classes": [
+          "AnalyzeRequest",
+          "CreateRecipeRequest"
+        ],
+        "functions": [],
+        "imports": [
+          "os",
+          "sys",
+          "time",
+          "typing",
+          "contextlib",
+          "bbc_core.bbc_logger",
+          "logging",
+          "bbc_core.hmpu_engine",
+          "bbc_core.state_manager",
+          "bbc_core.native_adapter",
+          "fastapi",
+          "fastapi.middleware.cors",
+          "pydantic",
+          "uvicorn",
+          "psutil"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 6312,
+        "time": 0.0,
+        "lines": 188,
+        "code_lines": 150,
+        "hash": "a2a5122c28f53be19d14500491bc7908ea2d03f1229f189e852255420527b9b4",
+        "tokens": 1461,
+        "bytes": 6327,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\ide_auto_config.py",
+      "structure": {
+        "classes": [
+          "IDEAutoConfigurator"
+        ],
+        "functions": [
+          "__init__",
+          "detect_active_ide",
+          "detect_vscode",
+          "detect_cursor",
+          "detect_windsurf",
+          "detect_jetbrains",
+          "detect_vim",
+          "detect_trae",
+          "detect_eclipse_theia",
+          "detect_fleet",
+          "detect_sublime",
+          "detect_notepadpp",
+          "detect_eclipse",
+          "detect_xcode",
+          "detect_visual_studio",
+          "detect_zed",
+          "detect_vscode_extensions",
+          "detect_jetbrains_plugins",
+          "detect_all",
+          "detect_active_integrations",
+          "configure_vscode",
+          "configure_cursor",
+          "configure_jetbrains",
+          "configure_vim",
+          "configure_all",
+          "print_summary",
+          "main"
+        ],
+        "imports": [
+          "os",
+          "sys",
+          "json",
+          "platform",
+          "pathlib",
+          "typing",
+          "psutil",
+          "time",
+          "psutil",
+          "psutil"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 36910,
+        "time": 0.0,
+        "lines": 918,
+        "code_lines": 766,
+        "hash": "aa3c76e117a2d84eae3d672f6e169138ebf63589c68bd5d5d85d38e01a550642",
+        "tokens": 8117,
+        "bytes": 36926,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\ide_hooks.py",
+      "structure": {
+        "classes": [
+          "BBCIDEHooks",
+          "BBCFileHandler"
+        ],
+        "functions": [
+          "__init__",
+          "detect_ide",
+          "setup_vscode_hooks",
+          "setup_cursor_hooks",
+          "setup_file_watcher",
+          "__init__",
+          "on_modified",
+          "_start_polling_watcher",
+          "scan_once",
+          "poll_loop",
+          "_handle_file_change",
+          "_write_activity_signal",
+          "setup_ai_prompt_hook",
+          "_setup_vscode_copilot_hook",
+          "_setup_cursor_hook",
+          "auto_setup_ide_integration",
+          "stop_monitoring",
+          "get_ide_hooks",
+          "setup_ide_integration",
+          "stop_ide_integration"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "time",
+          "threading",
+          "pathlib",
+          "datetime",
+          "psutil",
+          "bbc_core.agent_adapter",
+          "watchdog.observers",
+          "watchdog.events",
+          "bbc_core.ai_integration",
+          "bbc_core.auto_detector"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 12637,
+        "time": 0.0,
+        "lines": 352,
+        "code_lines": 269,
+        "hash": "37e67acb57a96cc80f76e284f1ce702f3eba065622acc724d4e74e496983efd9",
+        "tokens": 2485,
+        "bytes": 12637,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\ide_parser.py",
+      "structure": {
+        "classes": [
+          "IDETokenParser"
+        ],
+        "functions": [
+          "__init__",
+          "_parse_cursor_db",
+          "_parse_vscode_db",
+          "_parse_windsurf_db",
+          "supported_sources",
+          "get_real_usage"
+        ],
+        "imports": [
+          "json",
+          "os",
+          "sqlite3",
+          "pathlib",
+          "typing"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 4517,
+        "time": 0.0,
+        "lines": 126,
+        "code_lines": 106,
+        "hash": "6355f3587a4418f2f4d8a6fa0453400091a707b24213fab2d5bc61a8b6d89e49",
+        "tokens": 927,
+        "bytes": 4517,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\impact_analyzer.py",
+      "structure": {
+        "classes": [
+          "ImpactAnalyzer"
+        ],
+        "functions": [
+          "__init__",
+          "_load_context",
+          "_build_call_graph",
+          "_calculate_chaos",
+          "_symbol_vector",
+          "_cosine_similarity",
+          "_get_direct_dependents",
+          "_get_indirect_dependents",
+          "_get_symbol_dependents",
+          "analyze_impact"
+        ],
+        "imports": [
+          "json",
+          "math",
+          "os",
+          "re",
+          "collections",
+          "typing",
+          ".bbc_scalar",
+          ".hmpu_core"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 15456,
+        "time": 0.0,
+        "lines": 346,
+        "code_lines": 274,
+        "hash": "207e15124ce8cf5d70701805d8b2d374b72657b9cf5c7fd4cd423518c01d7452",
+        "tokens": 3834,
+        "bytes": 15944,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\matrix_ops.py",
+      "structure": {
+        "classes": [
+          "MatrixOps"
+        ],
+        "functions": [
+          "identity",
+          "matmul",
+          "gauss_jordan_inverse",
+          "pseudo_inverse",
+          "condition_number"
+        ],
+        "imports": [
+          "bbc_core.bbc_scalar"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5187,
+        "time": 0.0,
+        "lines": 149,
+        "code_lines": 102,
+        "hash": "526e40a3662cf9fa48bc1f54b4c7aee28c399333c40b7d21e47415b5a8617b9a",
+        "tokens": 1201,
+        "bytes": 5187,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\memory_store.py",
+      "structure": {
+        "classes": [
+          "MemoryStore"
+        ],
+        "functions": [
+          "__init__",
+          "_ensure_db",
+          "remember",
+          "recall",
+          "_export_to_md"
+        ],
+        "imports": [
+          "os",
+          "sqlite3",
+          "time",
+          "typing",
+          "bbc_core.config",
+          "datetime"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 4974,
+        "time": 0.0,
+        "lines": 135,
+        "code_lines": 115,
+        "hash": "db1588a4fe40c934bce8458e5950c83452d0fe64e04f62d4f6ca55795d8a49ed",
+        "tokens": 998,
+        "bytes": 4974,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\migrator_engine.py",
+      "structure": {
+        "classes": [
+          "BBCMigratorEngine"
+        ],
+        "functions": [
+          "__init__",
+          "_load_recipe",
+          "build_dependency_graph",
+          "topological_sort",
+          "visit",
+          "plan_migration"
+        ],
+        "imports": [
+          "os",
+          "json"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 4922,
+        "time": 0.0,
+        "lines": 119,
+        "code_lines": 83,
+        "hash": "6511a14d34a5fba47e6b1645dc7ad92a2b5c520ac384fbd66f873f3cb31236b4",
+        "tokens": 1003,
+        "bytes": 4922,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\native_adapter.py",
+      "structure": {
+        "classes": [
+          "BBCNativeAdapter"
+        ],
+        "functions": [
+          "__init__",
+          "compute_hash",
+          "_build_dependency_graph",
+          "normalize",
+          "import_to_module"
+        ],
+        "imports": [
+          "sys",
+          "json",
+          "os",
+          "asyncio",
+          "hashlib",
+          "ast",
+          ".hmpu_engine",
+          ".state_manager",
+          ".hmpu_indexer",
+          ".config",
+          ".scan_profile",
+          ".hmpu_quantizer",
+          "bbc_core.token_optimizer",
+          "time",
+          ".symbol_extractor",
+          ".symbol_graph",
+          ".change_tracker",
+          ".config",
+          "time",
+          "bbc_core.token_optimizer",
+          "bbc_core.token_optimizer",
+          "bbc_core.token_optimizer",
+          "re"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 25057,
+        "time": 0.0,
+        "lines": 601,
+        "code_lines": 497,
+        "hash": "93fada0ae2de1a73a09bb7b61063cd4bee292096f051c238a5229851f4c9ce35",
+        "tokens": 5011,
+        "bytes": 25102,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\project_hygiene.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "_resolve_project",
+          "_is_under",
+          "_run_git",
+          "_load_gitignore",
+          "_is_ignored_by_pattern",
+          "_iter_project_files",
+          "_path_size",
+          "_format_bytes",
+          "scan_personal_markers",
+          "doctor_report",
+          "publish_check_report",
+          "clean_bbc_runtime",
+          "print_doctor_report",
+          "print_publish_check_report",
+          "print_clean_report"
+        ],
+        "imports": [
+          "json",
+          "os",
+          "platform",
+          "shutil",
+          "subprocess",
+          "sys",
+          "time",
+          "pathlib",
+          "typing",
+          "bbc_core.ide_auto_config",
+          "bbc_core.ide_parser"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 13838,
+        "time": 0.0,
+        "lines": 457,
+        "code_lines": 405,
+        "hash": "c785fdbc2242e61d7499184d970d3e94df19282928fba4f076a0182c6a885f89",
+        "tokens": 3255,
+        "bytes": 13838,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\realtime_token_counter.py",
+      "structure": {
+        "classes": [
+          "TokenMetrics",
+          "RealTimeTokenCounter"
+        ],
+        "functions": [
+          "to_dict",
+          "__init__",
+          "start_session",
+          "update_tokens",
+          "get_metrics",
+          "end_session",
+          "add_callback",
+          "_log_event",
+          "_save_session_summary",
+          "get_token_counter",
+          "start_monitoring",
+          "update_token_usage",
+          "end_monitoring",
+          "get_current_metrics"
+        ],
+        "imports": [
+          "threading",
+          "json",
+          "os",
+          "datetime",
+          "typing",
+          "dataclasses"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5640,
+        "time": 0.0,
+        "lines": 163,
+        "code_lines": 125,
+        "hash": "2f1af8b2f6f5a8b77eb10bd08eb9a5ca288b4d2d76203c7776920886c8fde95e",
+        "tokens": 1210,
+        "bytes": 5640,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\scan_profile.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "load_bbcignore",
+          "normalize_rel",
+          "should_skip_dir_name",
+          "_matches_ignore",
+          "should_skip_file",
+          "iter_source_files"
+        ],
+        "imports": [
+          "__future__",
+          "fnmatch",
+          "os",
+          "pathlib",
+          "typing"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5062,
+        "time": 0.0,
+        "lines": 221,
+        "code_lines": 199,
+        "hash": "918ab1a8beea81da8eb3b0a175d6e65f1d831f49ca32588dc4adc0190b0167a6",
+        "tokens": 1271,
+        "bytes": 5062,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\semantic_packer.py",
+      "structure": {
+        "classes": [
+          "SemanticPacker"
+        ],
+        "functions": [
+          "__init__",
+          "pack",
+          "_clean_recipes",
+          "_deduplicate_imports",
+          "_collapse_small_files",
+          "_alias_paths",
+          "_strip_metadata",
+          "_compress_dep_graph",
+          "save_packed"
+        ],
+        "imports": [
+          "os",
+          "json",
+          "time",
+          "typing",
+          "collections",
+          ".config",
+          "copy",
+          "index"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 13561,
+        "time": 0.0,
+        "lines": 352,
+        "code_lines": 246,
+        "hash": "897c699e7c7f62e706bb38d172cff4ff16a832b5ef0112acb4e7fcecbdc0f439",
+        "tokens": 2712,
+        "bytes": 13563,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\state_manager.py",
+      "structure": {
+        "classes": [
+          "StateManager"
+        ],
+        "functions": [
+          "__new__",
+          "request_heal",
+          "consume_heal_budget",
+          "record_degenerate",
+          "update_tokens",
+          "increment_files_analyzed",
+          "increment_recipes_created",
+          "add_data_processed",
+          "add_token_savings",
+          "stats",
+          "reset_session",
+          "_reset_for_testing",
+          "get_stats",
+          "close"
+        ],
+        "imports": [
+          "datetime",
+          ".bbc_logger",
+          ".telemetry"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5623,
+        "time": 0.0,
+        "lines": 131,
+        "code_lines": 114,
+        "hash": "ea9d4eb1e0d6dce2e82e09ac0d85c98e25353d65ea0f52a03175551ed88447ea",
+        "tokens": 1277,
+        "bytes": 5625,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\symbol_extractor.py",
+      "structure": {
+        "classes": [
+          "SymbolType",
+          "Symbol",
+          "FileSymbols",
+          "PythonSymbolExtractor",
+          "RegexSymbolExtractor",
+          "SymbolExtractor"
+        ],
+        "functions": [
+          "to_dict",
+          "to_dict",
+          "to_json",
+          "__init__",
+          "extract",
+          "visit_ClassDef",
+          "visit_FunctionDef",
+          "visit_AsyncFunctionDef",
+          "_process_function",
+          "_get_function_signature",
+          "_get_decorator_name",
+          "_extract_variables",
+          "__init__",
+          "extract",
+          "__init__",
+          "detect_language",
+          "extract_from_file",
+          "extract_from_source",
+          "extract_from_directory",
+          "get_stats",
+          "export_to_json",
+          "get_supported_languages",
+          "main"
+        ],
+        "imports": [
+          "ast",
+          "os",
+          "json",
+          "re",
+          "pathlib",
+          "dataclasses",
+          "typing",
+          "enum",
+          ".scan_profile",
+          ".config",
+          "argparse"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 18921,
+        "time": 0.0,
+        "lines": 533,
+        "code_lines": 434,
+        "hash": "0465aa27e1c5ebcff6bc2006c715537dff7557e73dbc65e746a781882bdde8c3",
+        "tokens": 4440,
+        "bytes": 19073,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\symbol_graph.py",
+      "structure": {
+        "classes": [
+          "CallType",
+          "SymbolType",
+          "Call",
+          "SymbolNode",
+          "ImportResolver",
+          "ASTCallExtractor",
+          "SymbolGraph",
+          "SymbolGraphBuilder"
+        ],
+        "functions": [
+          "to_dict",
+          "to_dict",
+          "__init__",
+          "resolve_imports",
+          "_handle_import",
+          "_handle_import_from",
+          "resolve_symbol",
+          "is_module_imported",
+          "__init__",
+          "extract",
+          "visit_ClassDef",
+          "visit_FunctionDef",
+          "visit_AsyncFunctionDef",
+          "_enter_function",
+          "visit_Call",
+          "_get_current_caller",
+          "_get_raw_call",
+          "_analyze_call",
+          "_resolve_callee",
+          "_resolve_simple_call",
+          "_resolve_attribute_call",
+          "_get_object_chain",
+          "__init__",
+          "build_from_symbols",
+          "build_from_extractor_output",
+          "_add_symbol_node",
+          "_analyze_calls_ast",
+          "_process_call",
+          "_build_reverse_edges",
+          "_update_stats",
+          "get_node",
+          "get_dependents",
+          "collect",
+          "get_dependencies",
+          "get_blast_radius",
+          "to_dict",
+          "to_json",
+          "export_to_json",
+          "__init__",
+          "build_from_directory",
+          "build_simple",
+          "build_with_source_mapping",
+          "main"
+        ],
+        "imports": [
+          "ast",
+          "json",
+          "pathlib",
+          "dataclasses",
+          "typing",
+          "enum",
+          "argparse"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 30583,
+        "time": 0.0,
+        "lines": 866,
+        "code_lines": 661,
+        "hash": "51239dcd491da8c00a2f0ccb9bede20178da3f678b93288238ffebabf052f544",
+        "tokens": 7350,
+        "bytes": 31063,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\telemetry.py",
+      "structure": {
+        "classes": [
+          "TelemetryLogger"
+        ],
+        "functions": [
+          "__init__",
+          "set_session",
+          "log_event",
+          "get_event_count",
+          "get_recent_events",
+          "log_command",
+          "get_command_history",
+          "generate_summary",
+          "get_telemetry"
+        ],
+        "imports": [
+          ".telemetry",
+          "os",
+          "json",
+          "datetime",
+          "pathlib",
+          ".bbc_logger"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7796,
+        "time": 0.0,
+        "lines": 234,
+        "code_lines": 186,
+        "hash": "e8cbd836fe91116f1c33b9e5e413834e74839057976c010b91504ca0b3910bc8",
+        "tokens": 1920,
+        "bytes": 7936,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\terminal_monitor.py",
+      "structure": {
+        "classes": [
+          "TerminalMonitor"
+        ],
+        "functions": [
+          "__init__",
+          "start_monitoring",
+          "stop_monitoring",
+          "_monitor_loop",
+          "_on_metrics_update",
+          "_format_duration",
+          "_build_bar",
+          "_update_display",
+          "_create_compact_display",
+          "print_summary",
+          "get_terminal_monitor",
+          "start_live_monitoring",
+          "stop_live_monitoring",
+          "print_final_summary"
+        ],
+        "imports": [
+          "sys",
+          "time",
+          "threading",
+          ".realtime_token_counter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 7127,
+        "time": 0.0,
+        "lines": 183,
+        "code_lines": 131,
+        "hash": "8ff051f835fae70c9ecf71fc6a9abed67366019c1316d04cfcd69220eeb92910",
+        "tokens": 2042,
+        "bytes": 7127,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\token_optimizer.py",
+      "structure": {
+        "classes": [
+          "TokenOptimizer"
+        ],
+        "functions": [
+          "__init__",
+          "_shannon_entropy",
+          "_chunk_entropy",
+          "_chaos_derivative_filter",
+          "adaptive_sample",
+          "compact_json",
+          "_compact_recursive",
+          "_shorten_field",
+          "count_tokens",
+          "optimize"
+        ],
+        "imports": [
+          "json",
+          "math",
+          "re",
+          "collections",
+          "typing",
+          ".bbc_scalar",
+          "os",
+          "json",
+          "bbc_core.config",
+          "os",
+          "tiktoken"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 14466,
+        "time": 0.0010190010070800781,
+        "lines": 383,
+        "code_lines": 285,
+        "hash": "e0706f4ae4e3acbead996e614492d99208ccf9b14d909b00e1e8ff77dad73433",
+        "tokens": 3604,
+        "bytes": 15016,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "bbc_core\\verifier.py",
+      "structure": {
+        "classes": [
+          "BBCVerifier"
+        ],
+        "functions": [
+          "__init__",
+          "_extract_symbols",
+          "_load_recipe",
+          "verify_syntax_only",
+          "verify_freshness",
+          "verify_symbol_mismatch",
+          "_calculate_chaos",
+          "verify_full",
+          "verify_changed_only"
+        ],
+        "imports": [
+          "json",
+          "ast",
+          "os",
+          "re",
+          "math",
+          "hashlib",
+          "collections",
+          ".attribution_tracer",
+          ".hmpu_quantizer",
+          ".bbc_scalar",
+          ".scan_profile",
+          ".hmpu_core",
+          ".hmpu_core"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 30559,
+        "time": 0.0,
+        "lines": 679,
+        "code_lines": 544,
+        "hash": "14b62fb95c474dd3f4cbcaf59a8c425995045737641010fd654886284ee95525",
+        "tokens": 7150,
+        "bytes": 30747,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "benchmarks\\README.md",
+      "structure": {
+        "classes": [],
+        "functions": [],
+        "imports": [],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2387,
+        "time": 0.0,
+        "lines": 65,
+        "code_lines": 43,
+        "hash": "ffcf470c29767d422e808f0a1dc3b28d3f59115813ce954796676432378b0a84",
+        "tokens": 558,
+        "bytes": 2387,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\conftest.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "temp_project"
+        ],
+        "imports": [
+          "pytest",
+          "os",
+          "shutil",
+          "tempfile",
+          "json"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 1685,
+        "time": 0.0,
+        "lines": 57,
+        "code_lines": 45,
+        "hash": "9e959afc1ee8b1d8bea525c41ae3900e99443f9bf3e9694def0045faf71db7c8",
+        "tokens": 403,
+        "bytes": 1685,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_agent_adapter_invariants.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "_sealed_context",
+          "test_agent_adapter_outputs_keep_reuse_first_invariant",
+          "test_inject_to_project_keeps_reuse_first_in_central_and_ide_rules"
+        ],
+        "imports": [
+          "json",
+          "bbc_core.agent_adapter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2899,
+        "time": 0.0,
+        "lines": 87,
+        "code_lines": 76,
+        "hash": "418996bbc1582f4f5381b2cb9984659ae3014ef7df3e2289c6abfb67d8a6437c",
+        "tokens": 652,
+        "bytes": 2899,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_auto_detect.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_tokenizer_model_specific",
+          "test_auto_detect_from_existing_files",
+          "test_auto_detect_from_env",
+          "test_dependency_graph_accepts_normalized_import_names",
+          "test_dependency_graph_accepts_dynamic_imports"
+        ],
+        "imports": [
+          "os",
+          "pytest",
+          "pathlib",
+          "bbc_core.ide_auto_config",
+          "bbc_core.cli",
+          "bbc_core.native_adapter"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 3988,
+        "time": 0.0,
+        "lines": 91,
+        "code_lines": 64,
+        "hash": "7ab607edf4d0616374809b8ff9650400c3a4dace82567a950b16e7b21c9e349d",
+        "tokens": 1000,
+        "bytes": 3988,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_bbc_cli_surface.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_cli_version_flag",
+          "test_benchmark_reports_context_metrics",
+          "test_core_cli_inject_uses_global_bbc_config",
+          "test_preview_reports_no_source_or_github_writes",
+          "test_rule_health_passes_for_core_invariants",
+          "test_security_check_flags_secret_marker",
+          "test_readiness_combines_core_checks",
+          "test_mode_writes_context_mode_config"
+        ],
+        "imports": [
+          "json",
+          "sys",
+          "pytest",
+          "bbc",
+          "bbc_core.cli"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 5623,
+        "time": 0.0,
+        "lines": 159,
+        "code_lines": 126,
+        "hash": "45de13303a55d8f45a950c492d46c04808591a25ee4399976dc9463a770b63a2",
+        "tokens": 1482,
+        "bytes": 5623,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_math.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_bbc_scalar_init",
+          "test_bbc_scalar_multiplication",
+          "test_omega_operator_trigger"
+        ],
+        "imports": [
+          "pytest",
+          "bbc_core.bbc_scalar"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 662,
+        "time": 0.0,
+        "lines": 22,
+        "code_lines": 18,
+        "hash": "ae14a2bc8683a905fae0768a0ecf6e3b66f0f3595dfa5ca872dd5f197616edf3",
+        "tokens": 201,
+        "bytes": 662,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_new_modules.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_memory_store_remember_recall_conflict_force",
+          "test_ide_parser_reads_cursor_sqlite",
+          "test_ide_parser_does_not_return_synthetic_usage"
+        ],
+        "imports": [
+          "json",
+          "os",
+          "sqlite3",
+          "bbc_core.ide_parser",
+          "bbc_core.memory_store"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2740,
+        "time": 0.0,
+        "lines": 86,
+        "code_lines": 69,
+        "hash": "22c233b67f0bcbd49a3c6f7aa6ee524751214b598e5203ff827592e91db9989a",
+        "tokens": 703,
+        "bytes": 2740,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_project_hygiene.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_doctor_reports_missing_context_as_warning",
+          "test_publish_check_flags_unignored_bbc_trace_and_personal_path",
+          "test_publish_check_passes_when_bbc_trace_is_ignored",
+          "test_clean_bbc_runtime_removes_only_old_runtime_files"
+        ],
+        "imports": [
+          "os",
+          "time",
+          "bbc_core.project_hygiene"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2196,
+        "time": 0.0,
+        "lines": 59,
+        "code_lines": 41,
+        "hash": "86c6a326fe70c80b4b981159fd5212b1d4a18802e7cec0f5eb09bc705cfb37dd",
+        "tokens": 564,
+        "bytes": 2196,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_scan_profile.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "_write",
+          "test_scan_profile_excludes_large_repo_noise",
+          "test_change_tracker_uses_scan_profile",
+          "test_symbol_extractor_uses_scan_profile",
+          "test_native_analyze_uses_scan_profile"
+        ],
+        "imports": [
+          "asyncio",
+          "bbc_core.change_tracker",
+          "bbc_core.native_adapter",
+          "bbc_core.scan_profile",
+          "bbc_core.symbol_extractor"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 2400,
+        "time": 0.0,
+        "lines": 61,
+        "code_lines": 42,
+        "hash": "065d235461c09b0e8be35be67ae9dba3a6970d5cabff13162e6d80fe64a0cde2",
+        "tokens": 643,
+        "bytes": 2400,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_server.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_health_check"
+        ],
+        "imports": [
+          "pytest",
+          "os",
+          "fastapi.testclient",
+          "bbc_core.http_server"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 886,
+        "time": 0.0,
+        "lines": 26,
+        "code_lines": 18,
+        "hash": "9419e49620a1ffff8e149b91ad766c991b3fc09280c6029f117d4a395e85abd9",
+        "tokens": 202,
+        "bytes": 886,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_telemetry.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_telemetry_logging",
+          "test_telemetry_command_metric"
+        ],
+        "imports": [
+          "os",
+          "pytest",
+          "bbc_core.telemetry"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 1247,
+        "time": 0.0,
+        "lines": 39,
+        "code_lines": 31,
+        "hash": "41dea28589afc07b6d3dca8d96fb645ad5caa68f5cec720b1aa85ac34db7e6b3",
+        "tokens": 313,
+        "bytes": 1247,
+        "token_model": "gpt-4"
+      }
+    },
+    {
+      "path": "tests\\test_verifier.py",
+      "structure": {
+        "classes": [],
+        "functions": [
+          "test_verifier_load",
+          "test_verifier_syntax_clean",
+          "test_verifier_syntax_error",
+          "test_verifier_full_report"
+        ],
+        "imports": [
+          "os",
+          "pytest",
+          "bbc_core.verifier"
+        ],
+        "language": "python"
+      },
+      "stats": {
+        "size": 1320,
+        "time": 0.0,
+        "lines": 35,
+        "code_lines": 27,
+        "hash": "8aba78e0cfc49549b645341addf8ef07cf020426d753bc09e5eed6b8f615149d",
+        "tokens": 311,
+        "bytes": 1320,
+        "token_model": "gpt-4"
+      }
+    }
+  ],
+  "dependency_graph": {
+    "BBC_TECHNICAL_REFERENCE_EN.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "QUICK_START.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "README.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "USER_GUIDE.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "YAPILANLAR.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "bbc.py": {
+      "depends_on": [
+        "bbc_core\\global_menu.py",
+        "bbc_core\\auto_detector.py",
+        "bbc_core\\project_hygiene.py",
+        "bbc_core\\git_hooks.py",
+        "bbc_core\\config.py",
+        "bbc_core\\http_server.py",
+        "bbc_core\\auto_patcher.py",
+        "bbc_core\\ide_auto_config.py",
+        "bbc_daemon.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\telemetry.py",
+        "run_bbc.py",
+        "bbc_core\\impact_analyzer.py",
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\verifier.py"
+      ],
+      "depended_by": [
+        "tests\\test_bbc_cli_surface.py"
+      ]
+    },
+    "bbc_daemon.py": {
+      "depends_on": [
+        "bbc_core\\auto_detector.py",
+        "bbc_core\\hmpu_core.py",
+        "bbc_core\\ide_hooks.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\agent_adapter.py"
+      ],
+      "depended_by": [
+        "bbc.py"
+      ]
+    },
+    "bbc_installer.py": {
+      "depends_on": [
+        "bbc_core\\config.py"
+      ],
+      "depended_by": []
+    },
+    "run_bbc.py": {
+      "depends_on": [
+        "bbc_core\\hmpu_core.py",
+        "bbc_core\\config.py",
+        "bbc_core\\realtime_token_counter.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\verifier.py"
+      ],
+      "depended_by": [
+        "bbc.py"
+      ]
+    },
+    "setup.py": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "bbc_core\\__init__.py": {
+      "depends_on": [
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\adaptive_mode.py"
+      ],
+      "depended_by": []
+    },
+    "bbc_core\\__main__.py": {
+      "depends_on": [
+        "bbc_core\\native_adapter.py"
+      ],
+      "depended_by": []
+    },
+    "bbc_core\\adapter.py": {
+      "depends_on": [
+        "bbc_core\\native_adapter.py"
+      ],
+      "depended_by": []
+    },
+    "bbc_core\\adaptive_mode.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc_core\\__init__.py"
+      ]
+    },
+    "bbc_core\\agent_adapter.py": {
+      "depends_on": [
+        "bbc_core\\config.py",
+        "bbc_core\\context_compiler.py",
+        "bbc_core\\ide_auto_config.py"
+      ],
+      "depended_by": [
+        "bbc_core\\auto_detector.py",
+        "bbc_core\\__init__.py",
+        "bbc_daemon.py",
+        "bbc_core\\cli.py",
+        "bbc.py",
+        "bbc_core\\ide_hooks.py",
+        "tests\\test_agent_adapter_invariants.py"
+      ]
+    },
+    "bbc_core\\ai_integration.py": {
+      "depends_on": [
+        "bbc_core\\realtime_token_counter.py",
+        "bbc_core\\terminal_monitor.py"
+      ],
+      "depended_by": [
+        "bbc_core\\ide_hooks.py",
+        "bbc_core\\auto_detector.py"
+      ]
+    },
+    "bbc_core\\attribution_tracer.py": {
+      "depends_on": [
+        "bbc_core\\scan_profile.py"
+      ],
+      "depended_by": [
+        "bbc_core\\verifier.py"
+      ]
+    },
+    "bbc_core\\auto_detector.py": {
+      "depends_on": [
+        "bbc_core\\ai_integration.py",
+        "bbc_core\\config.py",
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\terminal_monitor.py"
+      ],
+      "depended_by": [
+        "bbc.py",
+        "bbc_core\\ide_hooks.py",
+        "bbc_daemon.py"
+      ]
+    },
+    "bbc_core\\auto_patcher.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc.py"
+      ]
+    },
+    "bbc_core\\bbc_logger.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\config.py",
+        "bbc_core\\http_server.py",
+        "bbc_core\\telemetry.py",
+        "bbc_core\\state_manager.py"
+      ]
+    },
+    "bbc_core\\bbc_scalar.py": {
+      "depends_on": [],
+      "depended_by": [
+        "tests\\test_math.py",
+        "bbc_core\\hmpu_core.py",
+        "bbc_core\\hallucination_guard.py",
+        "bbc_core\\auto_patcher.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\impact_analyzer.py",
+        "bbc_core\\token_optimizer.py",
+        "bbc_core\\hmpu_indexer.py",
+        "bbc_core\\verifier.py",
+        "bbc_core\\matrix_ops.py"
+      ]
+    },
+    "bbc_core\\change_tracker.py": {
+      "depends_on": [
+        "bbc_core\\config.py",
+        "bbc_core\\scan_profile.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "tests\\test_scan_profile.py",
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\cli.py": {
+      "depends_on": [
+        "bbc_core\\config.py",
+        "bbc_core\\ide_auto_config.py",
+        "bbc_core\\impact_analyzer.py",
+        "bbc_core\\semantic_packer.py",
+        "bbc_core\\verifier.py",
+        "bbc_core\\token_optimizer.py",
+        "bbc_core\\telemetry.py",
+        "bbc_core\\context_compiler.py",
+        "bbc_core\\bbc_scalar.py",
+        "bbc_core\\adaptive_mode.py",
+        "bbc_core\\memory_store.py",
+        "bbc_core\\ide_parser.py",
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\change_tracker.py",
+        "bbc_core\\hallucination_guard.py",
+        "bbc_core\\project_hygiene.py",
+        "bbc_core\\auto_patcher.py",
+        "bbc_core\\migrator_engine.py"
+      ],
+      "depended_by": [
+        "tests\\test_bbc_cli_surface.py",
+        "bbc_daemon.py",
+        "run_bbc.py",
+        "bbc.py",
+        "tests\\test_auto_detect.py"
+      ]
+    },
+    "bbc_core\\config.py": {
+      "depends_on": [
+        "bbc_core\\bbc_logger.py"
+      ],
+      "depended_by": [
+        "bbc_installer.py",
+        "bbc_core\\auto_detector.py",
+        "bbc_core\\memory_store.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\context_compiler.py",
+        "run_bbc.py",
+        "bbc_core\\symbol_extractor.py",
+        "bbc_core\\semantic_packer.py",
+        "bbc.py",
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\token_optimizer.py",
+        "bbc_core\\change_tracker.py"
+      ]
+    },
+    "bbc_core\\context_compiler.py": {
+      "depends_on": [
+        "bbc_core\\config.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc_core\\agent_adapter.py"
+      ]
+    },
+    "bbc_core\\context_optimizer.py": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "bbc_core\\git_hooks.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc.py"
+      ]
+    },
+    "bbc_core\\global_menu.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc.py"
+      ]
+    },
+    "bbc_core\\global_setup.py": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "bbc_core\\hallucination_guard.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py",
+        "bbc_core\\hmpu_core.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py"
+      ]
+    },
+    "bbc_core\\hmpu_core.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py",
+        "bbc_core\\matrix_ops.py",
+        "bbc_core\\state_manager.py"
+      ],
+      "depended_by": [
+        "bbc_core\\hmpu_engine.py",
+        "bbc_core\\hallucination_guard.py",
+        "bbc_daemon.py",
+        "bbc_core\\impact_analyzer.py",
+        "run_bbc.py",
+        "bbc_core\\verifier.py"
+      ]
+    },
+    "bbc_core\\hmpu_engine.py": {
+      "depends_on": [
+        "bbc_core\\hmpu_core.py",
+        "bbc_core\\state_manager.py"
+      ],
+      "depended_by": [
+        "bbc_core\\http_server.py",
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\hmpu_indexer.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py"
+      ],
+      "depended_by": [
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\hmpu_quantizer.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\verifier.py"
+      ]
+    },
+    "bbc_core\\http_server.py": {
+      "depends_on": [
+        "bbc_core\\bbc_logger.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\hmpu_engine.py",
+        "bbc_core\\state_manager.py"
+      ],
+      "depended_by": [
+        "tests\\test_server.py",
+        "bbc.py"
+      ]
+    },
+    "bbc_core\\ide_auto_config.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\project_hygiene.py",
+        "bbc_core\\cli.py",
+        "bbc.py",
+        "bbc_core\\agent_adapter.py",
+        "tests\\test_auto_detect.py"
+      ]
+    },
+    "bbc_core\\ide_hooks.py": {
+      "depends_on": [
+        "bbc_core\\ai_integration.py",
+        "bbc_core\\agent_adapter.py",
+        "bbc_core\\auto_detector.py"
+      ],
+      "depended_by": [
+        "bbc_daemon.py"
+      ]
+    },
+    "bbc_core\\ide_parser.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "tests\\test_new_modules.py",
+        "bbc_core\\project_hygiene.py"
+      ]
+    },
+    "bbc_core\\impact_analyzer.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py",
+        "bbc_core\\hmpu_core.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc.py"
+      ]
+    },
+    "bbc_core\\matrix_ops.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py"
+      ],
+      "depended_by": [
+        "bbc_core\\hmpu_core.py"
+      ]
+    },
+    "bbc_core\\memory_store.py": {
+      "depends_on": [
+        "bbc_core\\config.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "tests\\test_new_modules.py"
+      ]
+    },
+    "bbc_core\\migrator_engine.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\cli.py"
+      ]
+    },
+    "bbc_core\\native_adapter.py": {
+      "depends_on": [
+        "bbc_core\\change_tracker.py",
+        "bbc_core\\hmpu_engine.py",
+        "bbc_core\\config.py",
+        "bbc_core\\scan_profile.py",
+        "bbc_core\\hmpu_quantizer.py",
+        "bbc_core\\symbol_graph.py",
+        "bbc_core\\hmpu_indexer.py",
+        "bbc_core\\symbol_extractor.py",
+        "bbc_core\\token_optimizer.py",
+        "bbc_core\\state_manager.py"
+      ],
+      "depended_by": [
+        "bbc_core\\__main__.py",
+        "bbc_core\\http_server.py",
+        "bbc_core\\cli.py",
+        "bbc_core\\adapter.py",
+        "tests\\test_scan_profile.py",
+        "bbc.py",
+        "tests\\test_auto_detect.py"
+      ]
+    },
+    "bbc_core\\project_hygiene.py": {
+      "depends_on": [
+        "bbc_core\\ide_parser.py",
+        "bbc_core\\ide_auto_config.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc.py",
+        "tests\\test_project_hygiene.py"
+      ]
+    },
+    "bbc_core\\realtime_token_counter.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\ai_integration.py",
+        "run_bbc.py",
+        "bbc_core\\terminal_monitor.py"
+      ]
+    },
+    "bbc_core\\scan_profile.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\attribution_tracer.py",
+        "bbc_core\\symbol_extractor.py",
+        "tests\\test_scan_profile.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\verifier.py",
+        "bbc_core\\change_tracker.py"
+      ]
+    },
+    "bbc_core\\semantic_packer.py": {
+      "depends_on": [
+        "bbc_core\\config.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py"
+      ]
+    },
+    "bbc_core\\state_manager.py": {
+      "depends_on": [
+        "bbc_core\\bbc_logger.py",
+        "bbc_core\\telemetry.py"
+      ],
+      "depended_by": [
+        "bbc_core\\http_server.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\hmpu_engine.py",
+        "bbc_core\\hmpu_core.py"
+      ]
+    },
+    "bbc_core\\symbol_extractor.py": {
+      "depends_on": [
+        "bbc_core\\config.py",
+        "bbc_core\\scan_profile.py"
+      ],
+      "depended_by": [
+        "tests\\test_scan_profile.py",
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\symbol_graph.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\telemetry.py": {
+      "depends_on": [
+        "bbc_core\\bbc_logger.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc.py",
+        "tests\\test_telemetry.py",
+        "bbc_core\\state_manager.py"
+      ]
+    },
+    "bbc_core\\terminal_monitor.py": {
+      "depends_on": [
+        "bbc_core\\realtime_token_counter.py"
+      ],
+      "depended_by": [
+        "bbc_core\\ai_integration.py",
+        "bbc_core\\auto_detector.py"
+      ]
+    },
+    "bbc_core\\token_optimizer.py": {
+      "depends_on": [
+        "bbc_core\\config.py",
+        "bbc_core\\bbc_scalar.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc_core\\native_adapter.py"
+      ]
+    },
+    "bbc_core\\verifier.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py",
+        "bbc_core\\hmpu_core.py",
+        "bbc_core\\attribution_tracer.py",
+        "bbc_core\\hmpu_quantizer.py",
+        "bbc_core\\scan_profile.py"
+      ],
+      "depended_by": [
+        "bbc_core\\cli.py",
+        "bbc.py",
+        "run_bbc.py",
+        "tests\\test_verifier.py"
+      ]
+    },
+    "benchmarks\\README.md": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "tests\\conftest.py": {
+      "depends_on": [],
+      "depended_by": []
+    },
+    "tests\\test_agent_adapter_invariants.py": {
+      "depends_on": [
+        "bbc_core\\agent_adapter.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_auto_detect.py": {
+      "depends_on": [
+        "bbc_core\\cli.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\ide_auto_config.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_bbc_cli_surface.py": {
+      "depends_on": [
+        "bbc_core\\cli.py",
+        "bbc.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_math.py": {
+      "depends_on": [
+        "bbc_core\\bbc_scalar.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_new_modules.py": {
+      "depends_on": [
+        "bbc_core\\memory_store.py",
+        "bbc_core\\ide_parser.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_project_hygiene.py": {
+      "depends_on": [
+        "bbc_core\\project_hygiene.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_scan_profile.py": {
+      "depends_on": [
+        "bbc_core\\scan_profile.py",
+        "bbc_core\\native_adapter.py",
+        "bbc_core\\symbol_extractor.py",
+        "bbc_core\\change_tracker.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_server.py": {
+      "depends_on": [
+        "bbc_core\\http_server.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_telemetry.py": {
+      "depends_on": [
+        "bbc_core\\telemetry.py"
+      ],
+      "depended_by": []
+    },
+    "tests\\test_verifier.py": {
+      "depends_on": [
+        "bbc_core\\verifier.py"
+      ],
+      "depended_by": []
+    }
+  },
+  "constraint_status": "verified",
+  "metrics": {
+    "files_scanned": 66,
+    "total_lines": 20038,
+    "code_lines": 15819,
+    "raw_bytes": 803950,
+    "context_bytes": 17000,
+    "compression_ratio": 0.98,
+    "unified_savings_confidence": 0.532,
+    "syntax_error_count": 0,
+    "raw_tokens": 182097,
+    "context_tokens": 18723,
+    "savings_pct": 89.7,
+    "unified_tokens_used": 18723,
+    "unified_tokens_saved": 163374,
+    "unified_tokens_normal": 182097,
+    "unified_savings_pct": 89.7,
+    "unified_status": "IDLE",
+    "unified_source": "analyze",
+    "unified_updated_at": "2026-06-17T17:31:02"
+  },
+  "index_path": ".bbc\\indices\\bbc_main_memory_bbc_brain.json",
+  "symbol_analysis": {
+    "total_symbols": 2366,
+    "total_calls": 6533,
+    "internal_calls": 298,
+    "external_calls": 5587,
+    "files_with_symbols": 58,
+    "extractor_stats": {
+      "files_processed": 60,
+      "symbols_found": 3338,
+      "errors": 0
+    },
+    "critical_symbols": [
+      {
+        "symbol": "BBCDaemon._log",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_daemon.py",
+        "called_by_count": 22
+      },
+      {
+        "symbol": "_write",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\tests\\test_scan_profile.py",
+        "called_by_count": 13
+      },
+      {
+        "symbol": "BBCCLI.run_command",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc.py",
+        "called_by_count": 12
+      },
+      {
+        "symbol": "BBCAgentAdapter.extract_symbols",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\agent_adapter.py",
+        "called_by_count": 6
+      },
+      {
+        "symbol": "_is_under",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\project_hygiene.py",
+        "called_by_count": 6
+      },
+      {
+        "symbol": "BBCCLI",
+        "type": "class",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\cli.py",
+        "called_by_count": 5
+      },
+      {
+        "symbol": "BBCScalar._determine_new_state",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\bbc_scalar.py",
+        "called_by_count": 5
+      },
+      {
+        "symbol": "BBCScalar._build_result_metadata",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\bbc_scalar.py",
+        "called_by_count": 5
+      },
+      {
+        "symbol": "RealTimeTokenCounter._log_event",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\realtime_token_counter.py",
+        "called_by_count": 5
+      },
+      {
+        "symbol": "_print_transaction_report",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "BBCNativeAdapter.analyze_project",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\native_adapter.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "_resolve_project",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\project_hygiene.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "_format_bytes",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\project_hygiene.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "get_token_counter",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\realtime_token_counter.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "normalize_rel",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\scan_profile.py",
+        "called_by_count": 4
+      },
+      {
+        "symbol": "BBCNativeAdapter",
+        "type": "class",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\native_adapter.py",
+        "called_by_count": 3
+      },
+      {
+        "symbol": "BBCAIIntegration._sync_unified_metrics",
+        "type": "method",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\ai_integration.py",
+        "called_by_count": 3
+      },
+      {
+        "symbol": "get_bbc_integration",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\ai_integration.py",
+        "called_by_count": 3
+      },
+      {
+        "symbol": "get_auto_detector",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\auto_detector.py",
+        "called_by_count": 3
+      },
+      {
+        "symbol": "get_global_rules_dir",
+        "type": "function",
+        "file": "C:\\Users\\90535\\Desktop\\BBC_MASTER_BBCMath-main\\bbc_core\\global_setup.py",
+        "called_by_count": 3
+      }
+    ]
+  }
+}

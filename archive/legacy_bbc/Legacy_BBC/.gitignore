@@ -44,6 +44,8 @@ build/
 .bbc/BBC_INSTRUCTIONS.md
 .bbc/bbc_context.md
 .bbc/bbc_rules.md
+# CI test fixtures — bbc_context.json must be tracked for integration/e2e tests
+!.bbc/bbc_context.json
 .continue/
 .continue/config.json
 .github/copilot-instructions.md
