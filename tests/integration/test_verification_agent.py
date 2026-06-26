@@ -1,13 +1,11 @@
 import os
 import sys
 import unittest
-import hashlib
-import json
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
-from bbc_aos.agents.verification_agent import VerificationAgent, _VerificationEngine
+from bbc_aos.agents.verification_agent import VerificationAgent
 from bbc_aos.integration import (
     SubsystemRegistry,
     IntegrationContext,

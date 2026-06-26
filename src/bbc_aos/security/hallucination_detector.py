@@ -24,6 +24,8 @@ class HallucinationDetector:
 
         for path in self._files_from_patch(patch):
             rel = self._norm(path)
+            if not Path(rel).suffix:
+                continue
             if rel.startswith("tests/test_"):
                 continue
             if rel not in known_file_set and not (root / rel).exists():

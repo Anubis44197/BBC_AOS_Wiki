@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Best-practice Blast-radius Codebase Agentic Orchestration System"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 dependencies = [
     "click>=8.1.0",
     "pydantic>=2.0.0",
@@ -37,6 +37,22 @@ addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
 line-length = 100
+exclude = [
+    "archive",
+    "Legacy_BBC",
+    "bbc_aos",
+    "scratch",
+    "tools",
+    "test_venv",
+    "test_project_dir",
+    "dist",
+    "build",
+    ".git",
+    ".github",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+]
 
 [tool.mypy]
 strict = true

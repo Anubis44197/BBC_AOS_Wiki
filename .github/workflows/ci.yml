@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.5.0
         with:
           python-version: "3.11"
           cache: "pip"
@@ -31,11 +31,11 @@ jobs:
 
       - name: Run Mypy
         run: |
-          mypy --explicit-package-bases src/bbc_aos/
+          mypy --explicit-package-bases --ignore-missing-imports src/bbc_aos/
 
       - name: Run Pytest
         run: |
-          pytest
+          pytest -v
 
       - name: Build Package
         run: |

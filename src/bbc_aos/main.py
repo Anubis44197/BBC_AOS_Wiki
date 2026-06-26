@@ -580,7 +580,8 @@ def wiki_status(project: str, vault_path: str) -> None:
     from bbc_aos.wiki.compiler import WikiCompiler
 
     status = WikiCompiler(vault_path).status(project)
-    counts = status["counts"]
+    raw_counts = status.get("counts", {})
+    counts = raw_counts if isinstance(raw_counts, dict) else {}
     click.echo(f"Vault Healthy: {'YES' if status['vault_healthy'] else 'NO'}")
     click.echo(f"Executions: {counts.get('Executions', 0)}")
     click.echo(f"Failures: {counts.get('Failures', 0)}")

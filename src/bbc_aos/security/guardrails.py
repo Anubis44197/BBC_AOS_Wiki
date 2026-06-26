@@ -28,7 +28,7 @@ class SecurityGuardrails:
         "write_env": r"(?m)^\+.*(?:\.env|secrets/|credentials/)",
         "os_system": r"(?m)^\+.*\bos\.system\s*\(",
         "subprocess_call": r"(?m)^\+.*\bsubprocess\.(?:call|Popen|run)\s*\(",
-        "api_secret": r"(?m)^\+.*(?:sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._-]+|password\s*=)",
+        "api_secret": r"(?im)^\+.*(?:sk-[A-Za-z0-9_-]{12,}|Bearer\s+[A-Za-z0-9._-]+|(?:api[_-]?key|password|secret|token)\s*=)",
         "rm_rf": r"(?m)^\+.*\brm\s+-rf\b",
         "shutil_rmtree": r"(?m)^\+.*\bshutil\.rmtree\s*\(",
         "path_unlink_recursive": r"(?m)^\+.*\bPath\([^)]*\)\.unlink\s*\([^)]*recursive\s*=\s*True",

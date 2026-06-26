@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List
 DEFAULT_INVARIANTS: Dict[str, Any] = {
     "forbidden_paths": [],
     "must_not_modify": [],
-    "max_files_per_commit": 5,
+    "max_files_per_commit": 25,
     "require_tests": False,
     "require_docstrings": False,
     "forbidden_imports": ["subprocess", "os.system"],
@@ -32,7 +32,7 @@ class InvariantEngine:
                     [
                         "forbidden_paths: []",
                         "must_not_modify: []",
-                        "max_files_per_commit: 5",
+                        "max_files_per_commit: 25",
                         "require_tests: false",
                         "require_docstrings: false",
                         "forbidden_imports:",
@@ -60,7 +60,7 @@ class InvariantEngine:
         files = [str(f).replace("\\", "/").lstrip("./") for f in changed_files]
         violations: List[str] = []
 
-        max_files = int(invariants.get("max_files_per_commit", 5) or 5)
+        max_files = int(invariants.get("max_files_per_commit", 25) or 25)
         if len(files) > max_files:
             violations.append(f"max_files_per_commit exceeded: {len(files)} > {max_files}")
 

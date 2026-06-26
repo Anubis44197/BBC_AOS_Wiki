@@ -1,7 +1,7 @@
 """Retry helper for transient BBC-AOS loop failures."""
 
 import time
-from typing import Callable, Iterable, Tuple, TypeVar
+from typing import Callable, Iterable, Tuple, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -12,8 +12,12 @@ class RetryEngine:
     def __init__(self, delays: Iterable[float] = (1.0, 2.0, 4.0)) -> None:
         self.delays = list(delays)
 
-    def run(self, operation: Callable[[], T], transient_errors: Tuple[type, ...] = (OSError, TimeoutError)) -> T:
-        last_error = None
+    def run(
+        self,
+        operation: Callable[[], T],
+        transient_errors: Tuple[Type[BaseException], ...] = (OSError, TimeoutError),
+    ) -> T:
+        last_error: BaseException | None = None
         for attempt in range(len(self.delays) + 1):
             try:
                 return operation()
@@ -22,4 +26,6 @@ class RetryEngine:
                 if attempt >= len(self.delays):
                     break
                 time.sleep(self.delays[attempt])
-        raise last_error  # type: ignore[misc]
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Retry operation failed without capturing an exception")

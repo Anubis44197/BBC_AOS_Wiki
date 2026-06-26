@@ -2,14 +2,13 @@ import os
 import sys
 import shutil
 import unittest
-import json
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
 from bbc_aos.commit.commit_manager import CommitManager
 from bbc_aos.commit.commit_audit_log import CommitAuditLog
-from bbc_aos.commit.commit_exceptions import ValidationFailureException, RollbackException
+from bbc_aos.commit.commit_exceptions import ValidationFailureException
 
 
 class TestCommitPipelineSubsystem(unittest.TestCase):

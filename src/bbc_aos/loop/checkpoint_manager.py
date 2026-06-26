@@ -27,10 +27,16 @@ class CheckpointManager:
         path = self.state_dir / f"{checkpoint_id}.json"
         if not path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_id}")
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"Checkpoint payload is not an object: {checkpoint_id}")
+        return data
 
     def latest(self) -> Dict[str, Any]:
         checkpoints: List[Path] = sorted(self.state_dir.glob("cp_*.json"), key=lambda p: p.stat().st_mtime)
         if not checkpoints:
             raise FileNotFoundError("No checkpoints available")
-        return json.loads(checkpoints[-1].read_text(encoding="utf-8"))
+        data = json.loads(checkpoints[-1].read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"Checkpoint payload is not an object: {checkpoints[-1]}")
+        return data

@@ -255,3 +255,24 @@ bbc audit
 ```
 
 Metrics include executions, success rate, failure percentage, rollback count, most modified file, most common failure, average latency, and human rejection rate.
+
+---
+
+## 24. Release Validation Status
+
+Latest local validation:
+* Pytest: 59 passed
+* Ruff: passed
+* Mypy: passed across `src/bbc_aos`
+* Build: source distribution and wheel built successfully
+* Determinism stress: 1,000 iterations per scenario with zero variance
+* Security validation: 8/8 malicious scenarios blocked
+* Final certification: CERTIFIED
+* Clean install: passed from built wheel
+* Shadow mode: passed with unchanged file checksum
+
+Open release blockers:
+* Repository root cleanup requires explicit approval before moving or deleting major root artifacts.
+* GitHub Actions must be rerun after committing the validation fixes.
+* Docker build requires Docker Desktop Linux engine to be running locally.
+* Real repository benchmark currently has a limited placeholder report until full external repo runs are executed.

@@ -7,5 +7,3 @@ include SECURITY.md
 include CODE_OF_CONDUCT.md
 include Dockerfile
 recursive-include src/bbc_aos *.py
-recursive-exclude * __pycache__
-recursive-exclude * *.py[co]
