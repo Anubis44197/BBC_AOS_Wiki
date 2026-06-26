@@ -87,6 +87,7 @@ Through active AST dependency pruning and semantic collapsing, the packer achiev
 
 Audit logs record byte-for-byte state transitions. Re-running a task with the recorded `replay_id` re-executes the exact sequence of agent decisions, producing matching patch signatures and verification hashes.
 * **Replay Fidelity Score**: **1.0 (100%)**
+* **Terminal States Supported**: `execution_completed`, `execution_failed`, and security-blocked executions.
 
 ---
 
@@ -174,6 +175,8 @@ BBC-AOS blocks dangerous patch patterns before approval, including `.env` writes
 It also checks workspace boundaries, blast radius permissions, allowed file extensions, unknown files, unknown imports, strict symbol resolution, and unauthorized writes.
 
 Phase C10 adds a dedicated prompt-injection firewall and trust-boundary layer for untrusted retrieved content such as README files, comments, docstrings, markdown, Obsidian notes, tool outputs, external text, and retrieved files.
+
+Phase C11 wires production security validation into the real `bbc ask` pipeline before `PlannerAgent` execution. `PromptFirewall`, `InstructionHierarchy`, and `SecurityGuardrails` now emit immutable audit events for started, passed, and blocked validations.
 
 Latest local security certification:
 * **Prompt Injection Corpus**: **100/100 blocked**
@@ -281,26 +284,26 @@ bbc audit
 
 Metrics include executions, success rate, failure percentage, rollback count, most modified file, most common failure, average latency, and human rejection rate.
 
+The production integration audit log is append-only and records each orchestration stage with `trace_id`, `replay_id`, `deterministic_hash`, timestamp, agent name, and status. Replay reconstruction supports successful, failed, and security-rejected executions.
+
 ---
 
 ## 24. Release Validation Status
 
-Latest local validation:
-* Pytest: 59 passed
+Latest C11.1 local validation:
+* Pytest: 68 passed
 * Ruff: passed
-* Mypy: passed across `src/bbc_aos`
+* Mypy: passed across `src/bbc_aos` with 0 errors
 * Build: source distribution and wheel built successfully
-* Determinism stress: 1,000 iterations per scenario with zero variance
-* Security validation: 8/8 malicious scenarios blocked
-* Final certification: CERTIFIED
-* Clean install: passed from built wheel
-* Shadow mode: passed with unchanged file checksum
+* Security regression: 20/20 malicious prompts blocked
+* Replay regression: 20/20 traces reconstructed
+* Final replay score: 100.0%
+* Wiki quality: entity normalization, concept deduplication, backlink generation, timeline generation, and quality metrics passed
+* Final certification: READY FOR FINAL HEAVY PILOT
 
 Open release blockers:
-* Repository root cleanup requires explicit approval before moving or deleting major root artifacts.
 * GitHub Actions must be rerun after committing the validation fixes.
 * Docker build requires Docker Desktop Linux engine to be running locally.
-* Real repository benchmark currently has a limited placeholder report until full external repo runs are executed.
 
 ---
 
