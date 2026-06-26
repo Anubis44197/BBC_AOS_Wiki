@@ -33,14 +33,28 @@ class PromptFirewall:
 
     INSTRUCTION_PATTERNS = {
         "ignore_previous_instructions": r"ignore\s+(?:all\s+)?previous\s+instructions?",
+        "ignore_all_instructions": r"ignore\s+all\s+instructions?",
         "forget_all_instructions": r"forget\s+(?:all\s+)?instructions?",
         "you_are_chatgpt": r"you\s+are\s+chatgpt",
         "system_prompt": r"system\s+prompt",
         "execute_this": r"execute\s+this",
         "run_this_command": r"run\s+this\s+command",
+        "run_shell_commands": r"run\s+(?:shell\s+)?commands?",
+        "os_system": r"\bos\.system\s*\(",
         "act_as": r"\bact\s+as\b",
         "developer_instructions": r"developer\s+instructions?",
         "assistant_instructions": r"assistant\s+instructions?",
+        "delete_repository": r"\bdelete\s+(?:the\s+)?(?:repository|repo|project)\b",
+        "modify_outside_workspace": r"\bmodify\s+files?\s+outside\s+(?:the\s+)?workspace\b",
+        "disable_approval": r"\bdisable\s+(?:the\s+)?approval\s+system\b",
+        "turn_off_verification": r"\bturn\s+off\s+verification\b|\bdisable\s+verification\b",
+        "skip_approval": r"\bskip\s+(?:the\s+)?approval\s+gate\b|\bbypass\s+(?:the\s+)?approval\b",
+        "read_secrets": r"\bread\s+(?:the\s+)?secrets?\b|\bexfiltrate\s+(?:secrets?|tokens?|credentials?)\b",
+        "environment_secrets": r"\b(?:print|show|dump|read)\s+(?:environment\s+)?secrets?\b|\benvironment\s+variables?\b",
+        "bypass_sandbox": r"\bbypass\s+(?:the\s+)?sandbox\b",
+        "write_absolute_path": r"\bwrite\s+[A-Za-z]:[\\/][^\s]+",
+        "dangerous_delete": r"\brm\s+-rf\b|\bshutil\.rmtree\s*\(",
+        "delete_all_files": r"\bdelete\s+all\s+files?\b|\bdelete\s+.*recursively\b",
     }
     STRUCTURAL_PATTERNS = {
         "xml_tag": r"</?[A-Za-z][A-Za-z0-9:_-]*(?:\s+[^<>]*)?>",

@@ -1,0 +1,87 @@
+{
+  "bbc_instructions_version": "legacy-test-fixture",
+  "context_schema_version": "1.0",
+  "context_fresh": true,
+  "fail_policy": "block_on_missing_context",
+  "enforcement_level": "test",
+  "project_skeleton": {
+    "root": "Legacy_BBC",
+    "directories": [
+      "bbc_core"
+    ],
+    "files": [
+      "bbc_core/bbc_scalar.py",
+      "bbc_core/matrix_ops.py"
+    ]
+  },
+  "code_structure": [
+    {
+      "path": "bbc_core/bbc_scalar.py",
+      "file": "bbc_core/bbc_scalar.py",
+      "language": "python",
+      "symbols": [
+        {
+          "name": "BBCScalar",
+          "kind": "class"
+        },
+        {
+          "name": "ZeroBBCScalar",
+          "kind": "class"
+        }
+      ],
+      "stats": {
+        "lines": 300,
+        "code_lines": 220
+      }
+    },
+    {
+      "path": "bbc_core/matrix_ops.py",
+      "file": "bbc_core/matrix_ops.py",
+      "language": "python",
+      "symbols": [
+        {
+          "name": "BBCMatrix",
+          "kind": "class"
+        },
+        {
+          "name": "pseudo_inverse",
+          "kind": "function"
+        }
+      ],
+      "stats": {
+        "lines": 180,
+        "code_lines": 130
+      }
+    }
+  ],
+  "dependency_graph": {
+    "bbc_core/matrix_ops.py": {
+      "depends_on": [
+        "bbc_core/bbc_scalar.py"
+      ],
+      "depended_by": []
+    },
+    "bbc_core/bbc_scalar.py": {
+      "depends_on": [],
+      "depended_by": [
+        "bbc_core/matrix_ops.py"
+      ]
+    }
+  },
+  "symbol_analysis": {
+    "critical_symbols": [
+      {
+        "name": "BBCScalar",
+        "file": "bbc_core/bbc_scalar.py"
+      },
+      {
+        "name": "BBCMatrix",
+        "file": "bbc_core/matrix_ops.py"
+      },
+      {
+        "name": "pseudo_inverse",
+        "file": "bbc_core/matrix_ops.py"
+      }
+    ]
+  }
+}

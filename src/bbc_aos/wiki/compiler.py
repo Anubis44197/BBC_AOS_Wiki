@@ -4,16 +4,27 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 
 class WikiCompiler:
     """Compiles markdown vault indexes and lightweight semantic search results."""
 
-    NOTE_DIRS = ["Executions", "Failures", "Decisions", "Lessons_Learned", "Architecture", "Entities", "Concepts"]
+    NOTE_DIRS = [
+        "Executions",
+        "Failures",
+        "Decisions",
+        "Lessons_Learned",
+        "Architecture",
+        "Entities",
+        "Concepts",
+        "Timeline",
+        "Backlinks",
+    ]
 
     def __init__(self, vault_root: str = "") -> None:
-        self.vault_root = Path(vault_root or os.path.expanduser("~/BBC_KNOWLEDGE"))
+        configured_root = vault_root or os.environ.get("BBC_KNOWLEDGE_DIR", "")
+        self.vault_root = Path(configured_root or os.path.expanduser("~/BBC_KNOWLEDGE"))
 
     def ensure_project(self, project_id: str) -> Path:
         project = self.vault_root / "Projects" / project_id
@@ -23,6 +34,10 @@ class WikiCompiler:
 
     def compile_index(self, project_id: str) -> Path:
         project = self.ensure_project(project_id)
+        self.normalize_entities(project)
+        self.deduplicate_concepts(project)
+        self.generate_backlinks(project)
+        self.generate_timeline(project)
         notes = list(project.rglob("*.md"))
         executions = len(list((project / "Executions").glob("*.md")))
         failures = len(list((project / "Failures").glob("*.md")))
@@ -61,18 +76,144 @@ class WikiCompiler:
             for name in self.NOTE_DIRS:
                 counts[name] = len(list(root.rglob(f"{name}/*.md")))
         broken_links, orphan_notes = self._link_health(root) if root.exists() else (0, 0)
+        quality = self.quality_metrics(project_id) if root.exists() else {
+            "duplicate_rate": 0.0,
+            "orphan_rate": 0.0,
+            "backlink_density": 0.0,
+            "empty_note_rate": 0.0,
+        }
         return {
             "vault_healthy": root.exists(),
             "counts": counts,
             "broken_links": broken_links,
             "orphan_notes": orphan_notes,
+            "quality": quality,
             "last_sync": self._last_sync(root),
         }
+
+    def normalize_entities(self, project: Path) -> None:
+        entities_dir = project / "Entities"
+        if not entities_dir.exists():
+            return
+        seen: dict[str, Path] = {}
+        for note in sorted(entities_dir.glob("*.md")):
+            normalized = self._normalize_name(note.stem)
+            target = entities_dir / f"{normalized}.md"
+            if normalized in seen:
+                self._merge_note(seen[normalized], note)
+                note.unlink(missing_ok=True)
+                continue
+            if note != target and not target.exists():
+                note.rename(target)
+                note = target
+            elif note != target and target.exists():
+                self._merge_note(target, note)
+                note.unlink(missing_ok=True)
+                note = target
+            seen[normalized] = note
+
+    def deduplicate_concepts(self, project: Path) -> None:
+        concepts_dir = project / "Concepts"
+        if not concepts_dir.exists():
+            return
+        seen: dict[str, Path] = {}
+        for note in sorted(concepts_dir.glob("*.md")):
+            normalized = self._normalize_name(note.stem)
+            target = concepts_dir / f"{normalized}.md"
+            if normalized in seen:
+                self._merge_note(seen[normalized], note)
+                note.unlink(missing_ok=True)
+                continue
+            if note != target and not target.exists():
+                note.rename(target)
+                note = target
+            elif note != target and target.exists():
+                self._merge_note(target, note)
+                note.unlink(missing_ok=True)
+                note = target
+            seen[normalized] = note
+
+    def generate_backlinks(self, project: Path) -> Path:
+        backlinks_dir = project / "Backlinks"
+        backlinks_dir.mkdir(parents=True, exist_ok=True)
+        notes = [p for p in project.rglob("*.md") if "Backlinks" not in p.parts]
+        index: dict[str, list[str]] = {}
+        stems = {note.stem: note for note in notes}
+        for note in notes:
+            text = note.read_text(encoding="utf-8", errors="ignore")
+            for raw in re.findall(r"\[\[([^\]|#]+)", text):
+                target = Path(raw).stem
+                if target in stems:
+                    index.setdefault(target, []).append(note.stem)
+        lines = ["# Backlinks", ""]
+        for target in sorted(stems):
+            sources = sorted(set(index.get(target, [])))
+            if not sources:
+                continue
+            lines.append(f"## [[{target}]]")
+            lines.extend(f"- [[{source}]]" for source in sources)
+            lines.append("")
+        output = backlinks_dir / "BACKLINKS.md"
+        output.write_text("\n".join(lines), encoding="utf-8")
+        return output
+
+    def generate_timeline(self, project: Path) -> Path:
+        timeline_dir = project / "Timeline"
+        timeline_dir.mkdir(parents=True, exist_ok=True)
+        notes = sorted(
+            [p for p in project.rglob("*.md") if "Timeline" not in p.parts],
+            key=lambda p: p.stat().st_mtime,
+        )
+        lines = ["# Timeline", ""]
+        for note in notes:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(note.stat().st_mtime))
+            lines.append(f"- {stamp}: [[{note.stem}]]")
+        output = timeline_dir / "TIMELINE.md"
+        output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return output
+
+    def quality_metrics(self, project_id: str = "") -> Dict[str, float]:
+        root = self.vault_root / "Projects" / project_id if project_id else self.vault_root
+        notes = list(root.rglob("*.md")) if root.exists() else []
+        if not notes:
+            return {
+                "duplicate_rate": 0.0,
+                "orphan_rate": 0.0,
+                "backlink_density": 0.0,
+                "empty_note_rate": 0.0,
+            }
+        names = [self._normalize_name(note.stem) for note in notes]
+        duplicate_count = len(names) - len(set(names))
+        link_count = 0
+        linked: set[str] = set()
+        for note in notes:
+            text = note.read_text(encoding="utf-8", errors="ignore")
+            links = re.findall(r"\[\[([^\]|#]+)", text)
+            link_count += len(links)
+            linked.update(self._normalize_name(Path(raw).stem) for raw in links)
+        empty_count = sum(1 for note in notes if len(note.read_text(encoding="utf-8", errors="ignore").strip()) < 20)
+        orphan_count = sum(1 for name in names if name not in linked)
+        return {
+            "duplicate_rate": round((duplicate_count / max(1, len(notes))) * 100, 2),
+            "orphan_rate": round((orphan_count / max(1, len(notes))) * 100, 2),
+            "backlink_density": round(link_count / max(1, len(notes)), 2),
+            "empty_note_rate": round((empty_count / max(1, len(notes))) * 100, 2),
+        }
+
+    def _normalize_name(self, value: str) -> str:
+        normalized = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+        return normalized or "note"
+
+    def _merge_note(self, target: Path, duplicate: Path) -> None:
+        target_text = target.read_text(encoding="utf-8", errors="ignore") if target.exists() else ""
+        duplicate_text = duplicate.read_text(encoding="utf-8", errors="ignore")
+        if duplicate_text and duplicate_text not in target_text:
+            target.write_text(target_text.rstrip() + "\n\n## Merged Duplicate\n\n" + duplicate_text.strip() + "\n", encoding="utf-8")
 
     def _link_health(self, root: Path) -> tuple[int, int]:
         notes = list(root.rglob("*.md"))
         stems = {note.stem for note in notes}
-        linked = set()
+        linked: set[str] = set()
         broken = 0
         for note in notes:
             text = note.read_text(encoding="utf-8", errors="ignore")

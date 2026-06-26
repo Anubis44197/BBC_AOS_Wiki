@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 from bbc_aos.agents.base_agent import BaseAgent
 
 # Configure logger
@@ -131,6 +131,30 @@ class ContextAgent(BaseAgent):
             elif "orchestrator" in desc_lower or "hmpu_engine" in desc_lower:
                 target_file = target_file or "bbc_aos/core/orchestrator.py"
                 target_symbol = target_symbol or "RecipeValidator"
+            elif "fastapi" in desc_lower or "asgi" in desc_lower or "oauth" in desc_lower or "auth" in desc_lower:
+                target_file = target_file or "asgi_app.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "bedesten" in desc_lower:
+                target_file = target_file or "bedesten_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "kvkk" in desc_lower:
+                target_file = target_file or "kvkk_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "bddk" in desc_lower:
+                target_file = target_file or "bddk_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "kik" in desc_lower:
+                target_file = target_file or "kik_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "yargitay" in desc_lower:
+                target_file = target_file or "yargitay_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "danistay" in desc_lower:
+                target_file = target_file or "danistay_mcp_module/client.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
+            elif "mcp" in desc_lower or "tool" in desc_lower or "legal" in desc_lower:
+                target_file = target_file or "mcp_server_main.py"
+                target_symbol = target_symbol or self._first_symbol_in_file(symbol_graph, target_file)
             elif not target_file or not target_symbol:
                 fallback_symbol, fallback_file = self._first_indexed_target(symbol_graph)
                 target_file = target_file or fallback_file
@@ -153,7 +177,7 @@ class ContextAgent(BaseAgent):
         # 5. Context reduction using ContextOptimizer
         from bbc_aos.core.context_optimizer import ContextOptimizer
         optimizer = ContextOptimizer(symbol_graph=symbol_graph, min_reduction_ratio=0.0)
-        decision = optimizer.optimize(target_symbol, context_file=target_file)
+        optimizer.optimize(target_symbol, context_file=target_file)
         
         # 6. Compilation using TaskContextCompiler
         from bbc_aos.core.context_compiler import TaskContextCompiler
@@ -252,6 +276,17 @@ class ContextAgent(BaseAgent):
             raise ValueError("Strict symbol resolution failed: symbol graph is empty")
         first = sorted(symbols, key=lambda item: str(item["symbol"]))[0]
         return str(first["symbol"]).split(".")[-1], str(first.get("file", ""))
+
+    def _first_symbol_in_file(self, symbol_graph: Dict[str, Any], file_path: str) -> str:
+        normalized_target = file_path.replace("\\", "/")
+        symbols = [
+            item
+            for item in symbol_graph.get("symbols", [])
+            if isinstance(item, dict) and str(item.get("file", "")).replace("\\", "/").endswith(normalized_target)
+        ]
+        if symbols:
+            return str(symbols[0].get("symbol", "module")).split(".")[-1]
+        return "module"
 
 
     def finalize(self) -> None:

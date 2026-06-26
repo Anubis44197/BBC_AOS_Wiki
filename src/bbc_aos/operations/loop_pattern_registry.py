@@ -43,7 +43,7 @@ class LoopPatternRegistry:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.patterns_path = Path(__file__).with_name("patterns.yaml")
+        self.patterns_path = self.project_root / ".bbc" / "loop" / "patterns.yaml"
 
     def all(self) -> list[LoopPattern]:
         return sorted(DEFAULT_PATTERNS, key=lambda pattern: pattern.name)
@@ -66,5 +66,6 @@ class LoopPatternRegistry:
                 lines.append(f"      - {permission}")
             lines.append(f"    human_gate: {pattern.human_gate}")
             lines.append(f"    stop_condition: {pattern.stop_condition}")
+        self.patterns_path.parent.mkdir(parents=True, exist_ok=True)
         self.patterns_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return self.patterns_path

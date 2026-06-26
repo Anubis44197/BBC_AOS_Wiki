@@ -144,7 +144,20 @@ def index(path: str) -> None:
         try:
             fs = extractor.extract_from_file(f)
             if fs:
-                file_symbols.append(fs.to_dict())
+                symbol_data = fs.to_dict()
+                rel_path = os.path.relpath(f, path).replace("\\", "/")
+                try:
+                    source_text = open(f, "r", encoding="utf-8", errors="ignore").read()
+                except Exception:
+                    source_text = ""
+                lines = source_text.splitlines()
+                symbol_data["path"] = rel_path
+                symbol_data["file"] = rel_path
+                symbol_data["stats"] = {
+                    "lines": len(lines),
+                    "code_lines": len([line for line in lines if line.strip() and not line.strip().startswith("#")]),
+                }
+                file_symbols.append(symbol_data)
                 with open(f, "r", encoding="utf-8", errors="ignore") as sf:
                     source_mapping[f] = sf.read()
         except Exception as e:
@@ -235,27 +248,34 @@ def ask(query: str, shadow: bool) -> None:
     registry.register(VerificationAgent)
     
     state_manager = StateManager(heal_budget=1000, session_heal_budget=1000)
-    orchestrator = AgentOrchestrator(state_manager=state_manager, agent_registry=registry)
+    integration_log = IntegrationAuditLog(project_root=".", load_existing=True)
+    orchestrator = AgentOrchestrator(
+        state_manager=state_manager,
+        agent_registry=registry,
+        audit_log=integration_log,
+    )
     
     memory_manager = load_memory_manager(".")
-    integration_log = IntegrationAuditLog()
-    
     context_data = {
         "memory_manager": memory_manager,
         "integration_log": integration_log,
     }
     
-    trace_id = f"tr_{int(time.time())}"
-    replay_id = f"rp_{int(time.time())}"
+    run_stamp = time.time_ns()
+    trace_id = f"tr_{run_stamp}"
+    replay_id = f"rp_{run_stamp}"
     
     click.echo("[ASK] Spawning AgentOrchestrator E2E execution pipeline...")
-    status = orchestrator.execute_goal(
-        goal_id=f"goal_{int(time.time())}",
-        goal_description=query,
-        trace_id=trace_id,
-        replay_id=replay_id,
-        context_data=context_data,
-    )
+    try:
+        status = orchestrator.execute_goal(
+            goal_id=f"goal_{int(time.time())}",
+            goal_description=query,
+            trace_id=trace_id,
+            replay_id=replay_id,
+            context_data=context_data,
+        )
+    except Exception as exc:
+        raise click.ClickException(f"Security or pipeline validation failed: {exc}") from exc
     
     click.echo(f"[ASK] Pipeline status: {status['status']}")
     reflection = _generate_reflection(query, status)
@@ -305,6 +325,8 @@ def ask(query: str, shadow: bool) -> None:
             )
                 
             if approved:
+                if hasattr(integration_log, "append_event"):
+                    integration_log.append_event("commit_started", trace_id, replay_id, "commit_manager", "STARTED")
                 app_res = approval_manager.request_approval(
                     trace_id=trace_id,
                     replay_id=replay_id,
@@ -325,6 +347,8 @@ def ask(query: str, shadow: bool) -> None:
                     code_diff=coder_res,
                     workspace_root="."
                 )
+                if hasattr(integration_log, "append_event"):
+                    integration_log.append_event("commit_completed", trace_id, replay_id, "commit_manager", "COMPLETED", commit_res)
                 click.echo(f"[ASK] Transaction completed successfully. Commit Hash: {commit_res['commit_hash']}")
             else:
                 click.echo("[ASK] Transaction rejected. Rolling back transient workspace modifications.")
@@ -377,7 +401,7 @@ def replay(replay_id: str) -> None:
     
     from bbc_aos.integration import ReplayEngine, IntegrationAuditLog
     engine = ReplayEngine()
-    audit_log = IntegrationAuditLog()
+    audit_log = IntegrationAuditLog(project_root=".", load_existing=True)
     
     events = engine.reconstruct_execution(replay_id, audit_log)
     if not events:
@@ -385,7 +409,11 @@ def replay(replay_id: str) -> None:
     else:
         click.echo(f"[REPLAY] Found {len(events)} execution steps:")
         for idx, event in enumerate(events):
-            click.echo(f"  [{idx}] Type: {event.event_type} | Hash: {event.deterministic_hash}")
+            click.echo(
+                f"  [{idx}] Type: {event.event_type} | Agent: {event.agent_name} | "
+                f"Status: {event.status} | Hash: {event.deterministic_hash}"
+            )
+        click.echo(f"[REPLAY] Fidelity Score: {engine.fidelity_score(replay_id, audit_log):.2f}")
 
 
 @cli.command()
@@ -821,6 +849,9 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
         verify = outputs.get("verify_result", {})
         tester = outputs.get("tester_result", {})
         affected = coder.get("modified_files", []) + coder.get("added_files", []) + coder.get("removed_files", [])
+        if not affected:
+            context_result = outputs.get("context_result", {})
+            affected = context_result.get("selected_files", [])[:10]
         execution = {
             "goal": query,
             "status": status.get("status", "UNKNOWN"),
@@ -828,7 +859,7 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
             "operation": "patch" if affected else "review",
             "affected_files": affected,
         }
-        stamp = time.strftime("%Y%m%d_%H%M%S")
+        stamp = f"{time.strftime('%Y%m%d_%H%M%S')}_{abs(hash(query)) % 100000}"
         note_type = "Executions" if status.get("status") == "COMPLETED" else "Failures"
         (project / note_type / f"run_{stamp}.md").write_text(
             "\n".join([f"# Execution: {query}", f"- Status: {status.get('status')}", f"- Risk: {execution['risk_level']}", ""]),
@@ -867,7 +898,14 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
                 replay_id=status.get("replay_id", ""),
             )
         compiler.compile_index(project_id)
-    except Exception:
+    except Exception as exc:
+        try:
+            log_dir = Path(".bbc") / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with (log_dir / "wiki_errors.log").open("a", encoding="utf-8") as log_file:
+                log_file.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {type(exc).__name__}: {exc}\n")
+        except Exception:
+            pass
         return
 
 

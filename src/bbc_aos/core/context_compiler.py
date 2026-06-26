@@ -99,9 +99,13 @@ class TaskContextCompiler:
         # Build path -> recipe lookup and normalize windows separators in-place
         self._recipe_map: Dict[str, Dict[str, Any]] = {}
         for recipe in self.code_structure:
-            path = recipe.get("path", "").replace("\\", "/")
+            path = (recipe.get("path") or recipe.get("file") or "").replace("\\", "/")
+            if path.startswith("./"):
+                path = path[2:]
             if path:
                 recipe["path"] = path
+                recipe["file"] = path
+                recipe.setdefault("stats", self._infer_stats(recipe))
                 self._recipe_map[path] = recipe
 
         # Normalize keys in dependency graph
@@ -183,7 +187,7 @@ class TaskContextCompiler:
             for recipe in self.code_structure:
                 path = recipe.get("path", "")
                 stats = recipe.get("stats", {})
-                code_lines = stats.get("code_lines", 0)
+                code_lines = stats.get("code_lines", 0) or len(recipe.get("symbols", []))
                 if code_lines > 0:
                     score = min(1.0, code_lines / 500.0) * profile["priority_weight"].get("structure", 0.6)
                     scored_files[path] = max(scored_files.get(path, 0.0), score)
@@ -193,7 +197,7 @@ class TaskContextCompiler:
             for recipe in self.code_structure:
                 path = recipe.get("path", "")
                 stats = recipe.get("stats", {})
-                code_lines = stats.get("code_lines", 0)
+                code_lines = stats.get("code_lines", 0) or len(recipe.get("symbols", []))
                 if code_lines > 0:
                     score = min(1.0, code_lines / 500.0) * 0.5
                     scored_files[path] = max(scored_files.get(path, 0.0), score)
@@ -291,6 +295,13 @@ class TaskContextCompiler:
         """Gets direct imports declared by the file."""
         entry = self.dep_graph.get(file_path, {})
         return entry.get("depends_on", [])
+
+    def _infer_stats(self, recipe: Dict[str, Any]) -> Dict[str, int]:
+        symbol_count = len(recipe.get("symbols", []))
+        return {
+            "lines": max(symbol_count, 1),
+            "code_lines": max(symbol_count, 1),
+        }
 
     def _get_reverse_deps(self, file_path: str) -> List[str]:
         """Gets reverse dependencies importing this file."""

@@ -77,10 +77,8 @@ class SemanticPacker:
         packed["metrics"]["packing_collapsed_files"] = collapsed
         packed["metrics"]["packing_mode"] = "aggressive" if self.aggressive else "safe"
 
-        if import_index:
-            packed["_shared_imports"] = import_index
-        if alias_table:
-            packed["_path_aliases"] = alias_table
+        packed["_shared_imports"] = import_index
+        packed["_path_aliases"] = alias_table
 
         logger.info(f"Context packing complete. Savings: {saved_pct}% (Collapsed files: {collapsed})")
         return packed

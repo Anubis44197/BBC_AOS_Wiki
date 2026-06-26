@@ -8,6 +8,7 @@ import logging
 import copy
 import json
 import traceback
+import hashlib
 from typing import Any, Dict, List, Optional
 from bbc_aos.agents.agent_registry import AgentRegistry
 from bbc_aos.agents.agent_message import AgentMessage
@@ -159,6 +160,7 @@ class AgentOrchestrator:
             "context_data": context_data or {},
         }
         logger.info(f"[ORCHESTRATOR] Starting goal execution: '{goal_id}'")
+        self._run_security_validation(goal_description, trace_id, replay_id)
         return self._run_execution_loop(trace_id, replay_id)
 
     def resume_execution(
@@ -341,6 +343,7 @@ class AgentOrchestrator:
             while retries <= self.MAX_RETRIES:
                 try:
                     logger.info(f"[ORCHESTRATOR] Running stage '{stage}' (Attempt {retries + 1})...")
+                    self._audit_stage(stage, "started", trace_id, replay_id, {"attempt": retries + 1})
                     agent = agent_cls()
                     agent.initialize()
                     
@@ -355,10 +358,12 @@ class AgentOrchestrator:
                     agent.finalize()
                     
                     execution["outputs"][f"{stage}_result"] = result
+                    self._audit_stage(stage, "completed", trace_id, replay_id, {"attempt": retries + 1, "result": result})
                     success = True
                     break
                 except Exception as e:
                     logger.error(f"[ORCHESTRATOR] Attempt {retries + 1} at stage '{stage}' failed: {e}")
+                    self._audit_stage(stage, "failed", trace_id, replay_id, {"attempt": retries + 1, "error": str(e)})
                     retries += 1
                     execution["retry_counts"][stage] = retries
                     last_exception = e
@@ -366,6 +371,7 @@ class AgentOrchestrator:
             if not success:
                 execution["status"] = "FAILED"
                 self._save_checkpoint(stage, execution)
+                self._audit_event("execution_failed", trace_id, replay_id, "orchestrator", "FAILED", {"stage": stage})
                 raise last_exception or RuntimeError(f"Stage '{stage}' failed after maximum retries")
 
             # Update active stage to current
@@ -377,6 +383,7 @@ class AgentOrchestrator:
                 if verdict == "REJECTED":
                     execution["status"] = "SUSPENDED"
                     self._save_checkpoint(stage, execution)
+                    self._audit_event("execution_failed", trace_id, replay_id, "orchestrator", "SUSPENDED", {"reason": "verification_rejected"})
                     logger.warning("[ORCHESTRATOR] Verification rejected payload. Pipeline terminated.")
                     return self.get_execution_status(trace_id, replay_id)
 
@@ -387,7 +394,36 @@ class AgentOrchestrator:
             self._update_state_manager(stage, execution["outputs"][f"{stage}_result"])
 
         execution["status"] = "COMPLETED"
+        self._audit_event("execution_completed", trace_id, replay_id, "orchestrator", "COMPLETED")
         return self.get_execution_status(trace_id, replay_id)
+
+    def _run_security_validation(self, goal_description: str, trace_id: str, replay_id: str) -> None:
+        self._audit_event("security_started", trace_id, replay_id, "security", "STARTED")
+        self._audit_event("security_validation_started", trace_id, replay_id, "security", "STARTED")
+        from bbc_aos.security.prompt_firewall import PromptFirewall
+        from bbc_aos.security.instruction_hierarchy import InstructionHierarchy
+        from bbc_aos.security.guardrails import SecurityGuardrails
+
+        firewall_result = PromptFirewall().scan(goal_description, source="user_prompt")
+        boundary_result = InstructionHierarchy().validate_boundary(goal_description, source="external_text")
+        guardrail_result = SecurityGuardrails().validate_prompt(goal_description)
+        violations: List[str] = []
+        violations.extend(firewall_result.detected_patterns)
+        violations.extend(boundary_result.detected_patterns)
+        violations.extend([str(item.get("rule_id", "")) for item in guardrail_result.get("findings", [])])
+        unique_violations = sorted({v for v in violations if v})
+        details = {
+            "violations": unique_violations,
+            "firewall": firewall_result.to_dict(),
+            "instruction_hierarchy": boundary_result.to_dict(),
+            "guardrails": guardrail_result,
+        }
+        if firewall_result.blocked or not boundary_result.allowed or not guardrail_result.get("allowed", True):
+            self._audit_event("security_validation_blocked", trace_id, replay_id, "security", "BLOCKED", details)
+            self._audit_event("security_completed", trace_id, replay_id, "security", "BLOCKED", details)
+            raise SafetyBreachException("Security validation blocked prompt before agent execution: " + ", ".join(unique_violations))
+        self._audit_event("security_validation_passed", trace_id, replay_id, "security", "PASSED", details)
+        self._audit_event("security_completed", trace_id, replay_id, "security", "COMPLETED", details)
 
     def _get_agent_id_for_stage(self, stage: str) -> str:
         """Maps stage name to registry agent identifier."""
@@ -399,6 +435,59 @@ class AgentOrchestrator:
             "verify": "verification_agent",
         }
         return mapping[stage]
+
+    def _event_stage_name(self, stage: str) -> str:
+        return "verification" if stage == "verify" else stage
+
+    def _audit_stage(
+        self,
+        stage: str,
+        status: str,
+        trace_id: str,
+        replay_id: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        event_stage = self._event_stage_name(stage)
+        agent_name = self._get_agent_id_for_stage(stage)
+        self._audit_event(f"{event_stage}_{status}", trace_id, replay_id, agent_name, status.upper(), details)
+
+    def _audit_event(
+        self,
+        event_type: str,
+        trace_id: str,
+        replay_id: str,
+        agent_name: str,
+        status: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if not self.audit_log:
+            return
+        if hasattr(self.audit_log, "append_event"):
+            self.audit_log.append_event(
+                event_type=event_type,
+                trace_id=trace_id,
+                replay_id=replay_id,
+                agent_name=agent_name,
+                status=status,
+                details=details or {},
+            )
+            return
+        payload = json.dumps(details or {}, sort_keys=True, default=str)
+        deterministic_hash = hashlib.sha256(f"{event_type}:{trace_id}:{replay_id}:{payload}".encode("utf-8")).hexdigest()
+        from bbc_aos.integration.integration_audit_log import IntegrationAuditEvent
+
+        self.audit_log.append(
+            IntegrationAuditEvent(
+                event_id=deterministic_hash,
+                event_type=event_type,
+                trace_id=trace_id,
+                replay_id=replay_id,
+                deterministic_hash=deterministic_hash,
+                agent_name=agent_name,
+                status=status,
+                details=details or {},
+            )
+        )
 
     def _save_checkpoint(self, stage_name: str, execution: Dict[str, Any]) -> None:
         """Saves an immutable snapshot copy of current progress."""
@@ -464,6 +553,7 @@ class AgentOrchestrator:
                 "description": goal_description,
                 "dependencies": [],
             }
+            task = {**task, "description": f"{goal_description} | {task.get('description', '')}".strip(" |")}
             ctx["task"] = task
             return {
                 "context": ctx,
@@ -479,6 +569,7 @@ class AgentOrchestrator:
                 "description": goal_description,
                 "dependencies": [],
             }
+            task = {**task, "description": f"{goal_description} | {task.get('description', '')}".strip(" |")}
             ctx_res = outputs["context_result"]
             ctx["task"] = task
             ctx["selected_files"] = ctx_res.get("selected_files", [])
@@ -497,6 +588,7 @@ class AgentOrchestrator:
                 "description": goal_description,
                 "dependencies": [],
             }
+            task = {**task, "description": f"{goal_description} | {task.get('description', '')}".strip(" |")}
             coder_res = outputs["coder_result"]
             ctx["task"] = task
             ctx["code_diff"] = coder_res
@@ -514,6 +606,7 @@ class AgentOrchestrator:
                 "description": goal_description,
                 "dependencies": [],
             }
+            task = {**task, "description": f"{goal_description} | {task.get('description', '')}".strip(" |")}
             ctx_res = outputs["context_result"]
             coder_res = outputs["coder_result"]
             tester_res = outputs["tester_result"]
