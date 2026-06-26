@@ -1,5 +1,11 @@
 # BBC-AOS: Best-practice Blast-radius Codebase Agentic Orchestration System
 
+[![Tests](https://github.com/Anubis44197/BBC_AOS_Wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Anubis44197/BBC_AOS_Wiki/actions/workflows/ci.yml)
+[![Certification](https://github.com/Anubis44197/BBC_AOS_Wiki/actions/workflows/certification.yml/badge.svg)](https://github.com/Anubis44197/BBC_AOS_Wiki/actions/workflows/certification.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-1.0.0-orange)
+
 BBC-AOS is a production-grade, highly deterministic agentic orchestration platform designed to automate codebase modifications under strict safety guardrails. By combining static symbol-graph extraction, context compilation, and transactional commit pipelines, BBC-AOS guarantees mathematical reproducibility, context efficiency, and zero AI-hallucinated file edits.
 
 ---
