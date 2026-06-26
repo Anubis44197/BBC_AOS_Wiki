@@ -114,6 +114,16 @@ Connects your code memory with your Obsidian knowledge vault:
 * `bbc wiki search "<query>"`: Search vault lessons, concepts, entities, and executions.
 * `bbc obsidian connect <vault_path>`: Connect local vault.
 * `bbc obsidian setup-git`: Guide Obsidian Git backup setup without configuring GitHub sync automatically.
+* `bbc loop init`: Initialize the Operational Loop Layer.
+* `bbc loop audit`: Score operational loop readiness.
+* `bbc loop mode <l1|l2|l3>`: Set rollout mode.
+* `bbc loop patterns`: List operational loop patterns.
+* `bbc loop start <pattern>`: Start a loop pattern without bypassing approval gates.
+* `bbc loop status`: Show `.bbc/loop/STATE.json`.
+* `bbc loop budget`: Show loop limits and counters.
+* `bbc loop history`: Show append-only run history.
+* `bbc loop kill`: Activate the hard stop switch.
+* `bbc loop metrics`: Show operational metrics.
 
 ---
 
@@ -161,7 +171,16 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 BBC-AOS blocks dangerous patch patterns before approval, including `.env` writes, `os.system`, subprocess shell calls, `rm -rf`, `shutil.rmtree`, `eval`, `exec`, and `pickle.loads`.
 
-It also checks workspace boundaries, blast radius permissions, allowed file extensions, unknown files, and unknown imports.
+It also checks workspace boundaries, blast radius permissions, allowed file extensions, unknown files, unknown imports, strict symbol resolution, and unauthorized writes.
+
+Phase C10 adds a dedicated prompt-injection firewall and trust-boundary layer for untrusted retrieved content such as README files, comments, docstrings, markdown, Obsidian notes, tool outputs, external text, and retrieved files.
+
+Latest local security certification:
+* **Prompt Injection Corpus**: **100/100 blocked**
+* **Prompt Injection Bypass**: **0**
+* **Hallucination Corpus**: **500/500 blocked**
+* **Hallucination Escape Rate**: **0.0%**
+* **Unauthorized Write Escapes**: **0**
 
 ---
 
@@ -282,3 +301,37 @@ Open release blockers:
 * GitHub Actions must be rerun after committing the validation fixes.
 * Docker build requires Docker Desktop Linux engine to be running locally.
 * Real repository benchmark currently has a limited placeholder report until full external repo runs are executed.
+
+---
+
+## 25. Operational Loop Layer
+
+Phase C9 adds an operational layer above BBC-AOS agents. It manages production loop
+readiness, rollout mode, budget, state, pattern registry, run history, metrics, and
+hard stop behavior without changing core agent architecture.
+
+```bash
+bbc loop init
+bbc loop audit
+bbc loop mode l2
+bbc loop patterns
+bbc loop start security_scan
+bbc loop status
+bbc loop budget
+bbc loop history --last 20
+bbc loop metrics
+bbc loop kill
+```
+
+Rollout levels:
+* `L1` / `OBSERVE`: read-only reports.
+* `L2` / `ASSIST`: proposals with approval gates.
+* `L3` / `AUTONOMOUS`: approved operational loops with security and human gates intact.
+
+Runtime files:
+* `.bbc/loop/mode.json`
+* `.bbc/loop/STATE.json`
+* `.bbc/loop/budget.json`
+* `.bbc/loop/run_log.jsonl`
+* `.bbc/loop/KILL_SWITCH`
+* `BBC_KNOWLEDGE/Loop/STATE.md`

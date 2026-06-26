@@ -1,0 +1,81 @@
+{
+  "covered": [
+    "goal_clarity",
+    "verification_coverage",
+    "independent_evaluator",
+    "stop_conditions",
+    "budget_limits",
+    "rollback_strategy",
+    "sandbox_isolation",
+    "human_approval",
+    "replay_support",
+    "observability",
+    "failure_memory",
+    "security_guardrails"
+  ],
+  "criteria": [
+    {
+      "name": "goal_clarity",
+      "path": "README.md",
+      "weight": 8
+    },
+    {
+      "name": "verification_coverage",
+      "path": "tests",
+      "weight": 10
+    },
+    {
+      "name": "independent_evaluator",
+      "path": "src/bbc_aos/agents/verification_agent.py",
+      "weight": 10
+    },
+    {
+      "name": "stop_conditions",
+      "path": "src/bbc_aos/loop",
+      "weight": 8
+    },
+    {
+      "name": "budget_limits",
+      "path": "src/bbc_aos/operations/loop_budget.py",
+      "weight": 8
+    },
+    {
+      "name": "rollback_strategy",
+      "path": "src/bbc_aos/commit",
+      "weight": 8
+    },
+    {
+      "name": "sandbox_isolation",
+      "path": "src/bbc_aos/security",
+      "weight": 8
+    },
+    {
+      "name": "human_approval",
+      "path": "src/bbc_aos/approval",
+      "weight": 10
+    },
+    {
+      "name": "replay_support",
+      "path": "src/bbc_aos/loop/replay_engine.py",
+      "weight": 8
+    },
+    {
+      "name": "observability",
+      "path": "src/bbc_aos/observability",
+      "weight": 6
+    },
+    {
+      "name": "failure_memory",
+      "path": "src/bbc_aos/memory/failure_memory.py",
+      "weight": 8
+    },
+    {
+      "name": "security_guardrails",
+      "path": "src/bbc_aos/security/guardrails.py",
+      "weight": 8
+    }
+  ],
+  "level": "L3",
+  "missing": [],
+  "readiness_score": 100
+}

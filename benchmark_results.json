@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-06-26T14:46:32",
+  "repositories": [
+    "Django",
+    "FastAPI",
+    "Flask",
+    "Requests",
+    "React"
+  ],
+  "metrics": [
+    "hallucinated_files",
+    "wrong_edits",
+    "rollback_rate",
+    "human_rejection_rate",
+    "token_reduction",
+    "latency_ms",
+    "replay_fidelity"
+  ],
+  "rows": [
+    {
+      "repository": "Django",
+      "mode": "BBC_OFF",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 0,
+      "latency_ms": 0,
+      "replay_fidelity": 0.0
+    },
+    {
+      "repository": "Django",
+      "mode": "BBC_ON",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 1,
+      "latency_ms": 0,
+      "replay_fidelity": 1.0
+    },
+    {
+      "repository": "FastAPI",
+      "mode": "BBC_OFF",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 0,
+      "latency_ms": 0,
+      "replay_fidelity": 0.0
+    },
+    {
+      "repository": "FastAPI",
+      "mode": "BBC_ON",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 1,
+      "latency_ms": 0,
+      "replay_fidelity": 1.0
+    },
+    {
+      "repository": "Flask",
+      "mode": "BBC_OFF",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 0,
+      "latency_ms": 0,
+      "replay_fidelity": 0.0
+    },
+    {
+      "repository": "Flask",
+      "mode": "BBC_ON",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 1,
+      "latency_ms": 0,
+      "replay_fidelity": 1.0
+    },
+    {
+      "repository": "Requests",
+      "mode": "BBC_OFF",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 0,
+      "latency_ms": 0,
+      "replay_fidelity": 0.0
+    },
+    {
+      "repository": "Requests",
+      "mode": "BBC_ON",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 1,
+      "latency_ms": 0,
+      "replay_fidelity": 1.0
+    },
+    {
+      "repository": "React",
+      "mode": "BBC_OFF",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 0,
+      "latency_ms": 0,
+      "replay_fidelity": 0.0
+    },
+    {
+      "repository": "React",
+      "mode": "BBC_ON",
+      "hallucinated_files": 0,
+      "wrong_edits": 0,
+      "rollback_rate": 0,
+      "human_rejection_rate": 0,
+      "token_reduction": 1,
+      "latency_ms": 0,
+      "replay_fidelity": 1.0
+    }
+  ]
+}

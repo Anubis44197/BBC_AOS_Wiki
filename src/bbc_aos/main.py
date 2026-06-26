@@ -497,6 +497,173 @@ def daemon_status() -> None:
 
 
 @click.group()
+def loop() -> None:
+    """Operational Loop Layer commands."""
+    pass
+
+
+@loop.command("init")
+def loop_init() -> None:
+    """Initialize operational loop state, budget, and pattern files."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").init()
+    click.echo(f"[LOOP] Initialized: {result['loop_dir']}")
+    click.echo(f"[LOOP] Mode: {result['mode']}")
+
+
+@loop.command("mode")
+@click.argument("mode")
+def loop_mode(mode: str) -> None:
+    """Set operational rollout level: l1, l2, or l3."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").set_mode(mode)
+    click.echo(f"[LOOP] Mode: {result['mode']} ({result['label']})")
+
+
+@loop.command("audit")
+def loop_audit() -> None:
+    """Run operational loop readiness audit."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").audit()
+    click.echo(f"Readiness Score: {result['readiness_score']}/100")
+    click.echo(f"Level: {result['level']}")
+    click.echo("Covered:")
+    for item in result["covered"]:
+        click.echo(f"- {item}")
+    click.echo("Missing:")
+    for item in result["missing"]:
+        click.echo(f"- {item}")
+
+
+@loop.command("patterns")
+def loop_patterns() -> None:
+    """List registered operational loop patterns."""
+    from bbc_aos.operations import LoopManager
+
+    for pattern in LoopManager(".").patterns():
+        click.echo(f"{pattern['name']}: {pattern['description']}")
+
+
+@loop.command("describe")
+@click.argument("pattern")
+def loop_describe(pattern: str) -> None:
+    """Describe an operational loop pattern."""
+    from bbc_aos.operations import LoopManager
+
+    click.echo(json.dumps(LoopManager(".").describe(pattern), indent=2, sort_keys=True))
+
+
+@loop.command("start")
+@click.argument("pattern")
+@click.option("--goal", default="", help="Optional current goal for this loop run.")
+def loop_start(pattern: str, goal: str) -> None:
+    """Start an operational loop pattern without bypassing approval gates."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").start(pattern, goal)
+    click.echo(f"[LOOP] Started: {result['loop_id']}")
+    click.echo(f"[LOOP] Status: {result['status']}")
+    click.echo(f"[LOOP] Mode: {result['mode']}")
+
+
+@loop.command("status")
+def loop_status() -> None:
+    """Show operational loop state."""
+    from bbc_aos.operations import LoopManager
+
+    click.echo(json.dumps(LoopManager(".").status(), indent=2, sort_keys=True))
+
+
+@loop.command("pause")
+def loop_pause() -> None:
+    """Pause operational loop execution."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").pause()
+    click.echo(f"[LOOP] Status: {result['status']}")
+
+
+@loop.command("resume")
+def loop_resume() -> None:
+    """Resume operational loop execution."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").resume()
+    click.echo(f"[LOOP] Status: {result['status']}")
+
+
+@loop.command("stop")
+def loop_stop() -> None:
+    """Stop operational loop execution."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").stop()
+    click.echo(f"[LOOP] Status: {result['status']}")
+
+
+@loop.command("kill")
+def loop_kill() -> None:
+    """Activate hard operational kill switch."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").kill()
+    click.echo(f"[LOOP] Status: {result['status']}")
+    click.echo(f"[LOOP] Kill Switch: {result['kill_switch']}")
+
+
+@loop.command("budget")
+def loop_budget() -> None:
+    """Show operational loop budget limits and counters."""
+    from bbc_aos.operations import LoopManager
+
+    click.echo(json.dumps(LoopManager(".").budget(), indent=2, sort_keys=True))
+
+
+@loop.command("usage")
+def loop_usage() -> None:
+    """Show operational loop usage counters."""
+    from bbc_aos.operations import LoopManager
+
+    click.echo(json.dumps(LoopManager(".").budget(), indent=2, sort_keys=True))
+
+
+@loop.command("cost")
+def loop_cost() -> None:
+    """Show operational loop cost summary."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").budget()
+    click.echo(f"Loop Cost: {result['loop_cost']}")
+    click.echo(f"Estimated Tokens Saved: {result['estimated_tokens_saved']}")
+
+
+@loop.command("history")
+@click.option("--last", default=20, type=int, help="Number of recent run records to show.")
+def loop_history(last: int) -> None:
+    """Show operational loop run history."""
+    from bbc_aos.operations import LoopManager
+
+    click.echo(json.dumps(LoopManager(".").history(last), indent=2, sort_keys=True))
+
+
+@loop.command("metrics")
+def loop_metrics() -> None:
+    """Show operational loop metrics."""
+    from bbc_aos.operations import LoopManager
+
+    result = LoopManager(".").metrics()
+    click.echo(f"Executions: {result['executions']}")
+    click.echo(f"Success Rate: {result['success_rate']}%")
+    click.echo(f"Failures: {result['failure_rate']}%")
+    click.echo(f"Rollbacks: {result['rollbacks']}")
+    click.echo(f"Average Runtime: {result['average_runtime_ms']} ms")
+    click.echo(f"Current Mode: {result['current_mode']}")
+
+
+@click.group()
 def obsidian() -> None:
     """Obsidian knowledge vault connection management."""
     pass
@@ -595,6 +762,7 @@ cli.add_command(obsidian)
 cli.add_command(daemon)
 cli.add_command(wiki)
 cli.add_command(failures)
+cli.add_command(loop)
 
 
 def _detect_obsidian_installation() -> str:

@@ -48,6 +48,18 @@ class SecurityGuardrails:
             findings.extend(self._scan(pattern, patch, "BLOCK", rule_id))
         for rule_id, pattern in self.WARN_PATTERNS.items():
             findings.extend(self._scan(pattern, patch, "WARN", rule_id))
+        from bbc_aos.security.prompt_firewall import PromptFirewall
+
+        firewall_result = PromptFirewall().scan(patch, source="patch")
+        for pattern in firewall_result.detected_patterns:
+            findings.append(
+                GuardrailFinding(
+                    severity="BLOCK",
+                    rule_id=f"prompt_injection_{pattern}",
+                    message=f"BLOCK security guardrail matched: prompt_injection_{pattern}",
+                    evidence=pattern,
+                )
+            )
         return findings
 
     def validate_patch(self, patch: str) -> Dict[str, object]:

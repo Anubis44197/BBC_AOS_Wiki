@@ -451,6 +451,15 @@ class CoderAgent(BaseAgent):
             len(selected_files),
         )
 
+        from bbc_aos.security.prompt_firewall import PromptFirewall
+
+        firewall_result = PromptFirewall().scan(description, source="task_description")
+        if firewall_result.blocked:
+            raise ValueError(
+                "Prompt injection detected in task description: "
+                + ", ".join(firewall_result.detected_patterns)
+            )
+
         if len(selected_files) > 50:
             logger.warning("[CODER AGENT] selected_files (%d) exceeds limit 50; truncating.", len(selected_files))
             selected_files = selected_files[:50]

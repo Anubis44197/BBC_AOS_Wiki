@@ -333,6 +333,7 @@ class _VerificationEngine:
         workspace_root = packed_body.get("project_skeleton", {}).get("root", os.getcwd())
 
         from bbc_aos.security.guardrails import SecurityGuardrails
+        from bbc_aos.security.hallucination_guard import HallucinationGuard
         from bbc_aos.security.permission_engine import PermissionEngine
         from bbc_aos.security.hallucination_detector import HallucinationDetector
 
@@ -350,6 +351,20 @@ class _VerificationEngine:
             violations.append(f"Permission violation: {violation}")
 
         known_symbols = self._known_symbols_from_context(packed_context)
+        approved_files = packed_context.get("planner_approved_files", [])
+        if not approved_files:
+            approved_files = packed_body.get("planner_approved_files", [])
+        guard_result = HallucinationGuard().validate_execution(
+            patch=patch,
+            workspace_root=workspace_root,
+            changed_files=changed_files,
+            selected_files=selected_files,
+            approved_files=approved_files,
+            known_symbols=known_symbols,
+        )
+        for violation in guard_result.get("violations", []):
+            violations.append(f"Hallucination guard violation: {violation}")
+
         hallucination_result = HallucinationDetector().validate_patch(
             patch=patch,
             workspace_root=workspace_root,

@@ -1,0 +1,72 @@
+patterns:
+  - name: benchmark_runner
+    description: Run deterministic benchmark suite.
+    schedule: weekly
+    mode: L2
+    required_permissions:
+      - read
+      - execute
+    human_gate: required
+    stop_condition: benchmark_report_written
+  - name: ci_sweeper
+    description: Inspect failing CI and propose remediation.
+    schedule: on_ci_failure
+    mode: L2
+    required_permissions:
+      - read
+      - propose
+    human_gate: required
+    stop_condition: ci_green_or_escalated
+  - name: daily_triage
+    description: Review project state and summarize next actions.
+    schedule: daily
+    mode: L1
+    required_permissions:
+      - read
+    human_gate: none
+    stop_condition: summary_generated
+  - name: dependency_update
+    description: Review dependency drift and propose safe updates.
+    schedule: weekly
+    mode: L2
+    required_permissions:
+      - read
+      - propose
+    human_gate: required
+    stop_condition: no_updates_or_pr_ready
+  - name: documentation_refresh
+    description: Update docs from completed changes.
+    schedule: weekly
+    mode: L2
+    required_permissions:
+      - read
+      - propose
+    human_gate: required
+    stop_condition: docs_current
+  - name: issue_triage
+    description: Classify and prioritize open issues.
+    schedule: daily
+    mode: L1
+    required_permissions:
+      - read
+    human_gate: none
+    stop_condition: issues_labeled
+  - name: release_preparation
+    description: Prepare release validation and checklists.
+    schedule: manual
+    mode: L2
+    required_permissions:
+      - read
+      - execute
+      - propose
+    human_gate: required
+    stop_condition: release_ready_or_blocked
+  - name: security_scan
+    description: Run security checks and escalate BLOCK findings.
+    schedule: daily
+    mode: L2
+    required_permissions:
+      - read
+      - scan
+    human_gate: required
+    stop_condition: no_block_findings

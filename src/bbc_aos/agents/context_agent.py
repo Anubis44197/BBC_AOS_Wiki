@@ -131,9 +131,10 @@ class ContextAgent(BaseAgent):
             elif "orchestrator" in desc_lower or "hmpu_engine" in desc_lower:
                 target_file = target_file or "bbc_aos/core/orchestrator.py"
                 target_symbol = target_symbol or "RecipeValidator"
-            else:
-                target_file = target_file or "bbc_aos/core/bbc_scalar.py"
-                target_symbol = target_symbol or "BBCScalar"
+            elif not target_file or not target_symbol:
+                fallback_symbol, fallback_file = self._first_indexed_target(symbol_graph)
+                target_file = target_file or fallback_file
+                target_symbol = target_symbol or fallback_symbol
                 
             if "fix" in desc_lower or "bug" in desc_lower or "validation" in desc_lower:
                 task_profile = task_profile or "bugfix"
@@ -143,6 +144,11 @@ class ContextAgent(BaseAgent):
                 task_profile = task_profile or "review"
             else:
                 task_profile = task_profile or "feature"
+
+        if not self._has_exact_symbol(target_symbol, symbol_graph):
+            fallback_symbol, fallback_file = self._first_indexed_target(symbol_graph)
+            target_file = fallback_file
+            target_symbol = fallback_symbol
 
         # 5. Context reduction using ContextOptimizer
         from bbc_aos.core.context_optimizer import ContextOptimizer
@@ -234,8 +240,20 @@ class ContextAgent(BaseAgent):
              
         return True
 
+    def _has_exact_symbol(self, target_symbol: str, symbol_graph: Dict[str, Any]) -> bool:
+        symbols = symbol_graph.get("symbols", [])
+        exact_symbols = {item.get("symbol") for item in symbols if isinstance(item, dict)}
+        exact_short_names = {str(symbol).split(".")[-1] for symbol in exact_symbols if symbol}
+        return target_symbol in exact_symbols or target_symbol in exact_short_names
+
+    def _first_indexed_target(self, symbol_graph: Dict[str, Any]) -> tuple[str, str]:
+        symbols = [item for item in symbol_graph.get("symbols", []) if isinstance(item, dict) and item.get("symbol")]
+        if not symbols:
+            raise ValueError("Strict symbol resolution failed: symbol graph is empty")
+        first = sorted(symbols, key=lambda item: str(item["symbol"]))[0]
+        return str(first["symbol"]).split(".")[-1], str(first.get("file", ""))
+
 
     def finalize(self) -> None:
         """Performs cleanup and completes telemetry logging."""
         logger.info("[CONTEXT AGENT] Finalizing ContextAgent.")
-
