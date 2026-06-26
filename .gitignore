@@ -120,6 +120,7 @@ dmypy.json
 cython_debug/
 
 # Local BBC-AOS runtime directory (keep the directory but ignore runtime database logs/states)
+.bbc/
 .bbc/logs/
 .bbc/state/
 .bbc/indices/
