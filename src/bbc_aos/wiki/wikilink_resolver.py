@@ -28,6 +28,16 @@ class WikilinkResolver:
             if updated != original:
                 note.write_text(updated, encoding="utf-8")
                 repaired += 1
+        for raw in self._broken_links():
+            self.registry.register(raw, "wikilink repair")
+        for note in self.registry.project_root.rglob("*.md"):
+            if ".obsidian" in note.parts:
+                continue
+            original = note.read_text(encoding="utf-8", errors="ignore")
+            updated = self.repair_text(original, note)
+            if updated != original:
+                note.write_text(updated, encoding="utf-8")
+                repaired += 1
         return {
             "notes_repaired": repaired,
             "entities_created": max(0, len(self.registry.entries()) - created_before),
@@ -37,7 +47,6 @@ class WikilinkResolver:
         existing_stems = {
             normalize_entity_name(note.stem)
             for note in self.registry.project_root.rglob("*.md")
-            if "Entities" not in note.parts
         }
 
         def replace(match: re.Match[str]) -> str:
@@ -51,12 +60,15 @@ class WikilinkResolver:
         return WIKILINK_PATTERN.sub(replace, text)
 
     def broken_link_count(self) -> int:
+        return len(self._broken_links())
+
+    def _broken_links(self) -> list[str]:
         notes = list(self.registry.project_root.rglob("*.md"))
         stems = {normalize_entity_name(note.stem) for note in notes}
-        broken = 0
+        broken: list[str] = []
         for note in notes:
             text = note.read_text(encoding="utf-8", errors="ignore")
             for raw in WIKILINK_PATTERN.findall(text):
                 if normalize_entity_name(raw) not in stems:
-                    broken += 1
-        return broken
+                    broken.append(raw)
+        return sorted(set(broken), key=normalize_entity_name)

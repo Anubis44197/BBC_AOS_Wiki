@@ -187,18 +187,35 @@ class ContextAgent(BaseAgent):
             target_file=target_file,
             target_symbols=[target_symbol]
         )
+
+        # 7. Production blast-radius expansion across imports, references, semantics, and infra.
+        from bbc_aos.core.impact_analysis import LayeredImpactAnalyzer
+
+        impact = LayeredImpactAnalyzer(full_context).analyze(
+            description=description,
+            target_file=target_file,
+            target_symbols=[target_symbol],
+            limit=50,
+        )
+        selected_files = impact["affected_files"][:50]
+        compiled_context["impact_analysis"] = impact
+        compiled_context["selected_files"] = selected_files
+        compiled_context.setdefault("project_skeleton", {})
+        compiled_context["project_skeleton"]["hierarchy"] = selected_files
+        compiled_context["project_skeleton"]["file_count"] = len(selected_files)
+        compiled_context.setdefault("task_context", {})
+        compiled_context["task_context"]["files_included"] = len(selected_files)
+        compiled_context["task_context"]["blast_radius_score"] = impact["blast_radius_score"]
+        compiled_context["task_context"]["blast_radius_class"] = impact["blast_radius_class"]
         
-        # Extract selected files
-        selected_files = [recipe["path"] for recipe in compiled_context.get("code_structure", [])]
-        # Guard: Maximum selected files = 50
-        selected_files = selected_files[:50]
-        
-        # 7. Semantic packing compression
+        # 8. Semantic packing compression
         from bbc_aos.core.semantic_packer import SemanticPacker
         packer = SemanticPacker(aggressive=False)
         packed_context = packer.pack(compiled_context)
+        packed_context["selected_files"] = selected_files
+        packed_context["impact_analysis"] = impact
         
-        # 8. Deterministic hashing of output payload
+        # 9. Deterministic hashing of output payload
         packed_json = json.dumps(packed_context, sort_keys=True)
         hash_input = f"{task_id}_{trace_id}_{packed_json}"
         payload_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
@@ -213,12 +230,12 @@ class ContextAgent(BaseAgent):
             "packed_context": packed_context
         }
         
-        # 9. Enforce ValidationGateway checks inside the agent itself
+        # 10. Enforce ValidationGateway checks inside the agent itself
         from bbc_aos.integration.validation_gateway import ValidationGateway
         gateway = ValidationGateway()
         gateway.validate_output(self.AGENT_ID, result)
         
-        # 10. Generate IntegrationAuditLog event inside the agent itself
+        # 11. Generate IntegrationAuditLog event inside the agent itself
         from bbc_aos.integration.integration_audit_log import IntegrationAuditLog, IntegrationAuditEvent
         audit_log = context.get("integration_log")
         if not audit_log:
@@ -230,7 +247,13 @@ class ContextAgent(BaseAgent):
             trace_id=trace_id,
             replay_id=replay_id,
             deterministic_hash=payload_hash,
-            details={"task_id": task_id, "selected_files_count": len(selected_files)}
+            details={
+                "task_id": task_id,
+                "selected_files_count": len(selected_files),
+                "blast_radius_score": impact["blast_radius_score"],
+                "blast_radius_class": impact["blast_radius_class"],
+                "change_impact_matrix": impact["change_impact_matrix"],
+            }
         )
         audit_log.append(event)
         

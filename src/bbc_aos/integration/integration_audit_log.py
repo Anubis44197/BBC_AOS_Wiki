@@ -68,9 +68,12 @@ class IntegrationAuditLog:
             event: The immutable audit event.
         """
         self._events.append(event)
-        self.audit_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.audit_path.open("a", encoding="utf-8", newline="\n") as audit_file:
-            audit_file.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
+        try:
+            self.audit_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.audit_path.open("a", encoding="utf-8", newline="\n") as audit_file:
+                audit_file.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
+        except OSError:
+            return
 
     def append_event(
         self,

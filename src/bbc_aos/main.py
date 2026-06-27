@@ -325,6 +325,15 @@ def ask(query: str, shadow: bool) -> None:
         verify_res = outputs.get("verify_result", {})
         coder_res = outputs.get("coder_result", {})
         tester_res = outputs.get("tester_result", {})
+        context_res = outputs.get("context_result", {})
+        packed_context = context_res.get("packed_context", {}) if isinstance(context_res, dict) else {}
+        impact = packed_context.get("impact_analysis", {}) if isinstance(packed_context, dict) else {}
+        selected_files = context_res.get("selected_files", []) if isinstance(context_res, dict) else []
+        changed_files = coder_res.get("modified_files", []) + coder_res.get("added_files", []) + coder_res.get("removed_files", [])
+        displayed_files = changed_files or selected_files
+        blast_score = int(impact.get("blast_radius_score", 0) or 0)
+        blast_class = str(impact.get("blast_radius_class", "UNKNOWN"))
+        affected_count = int(impact.get("affected_file_count", len(displayed_files)) or len(displayed_files))
         
         verdict = verify_res.get("verdict", "APPROVED")
         risk_level = tester_res.get("risk_level", "LOW") if tester_res else "LOW"
@@ -333,9 +342,23 @@ def ask(query: str, shadow: bool) -> None:
         if shadow:
             click.echo("[ASK] SHADOW EXECUTION COMPLETE")
             click.echo(f"[ASK] Verification: {verdict}")
+            click.echo("[ASK] Approval visibility:")
+            click.echo(f"[ASK]   Risk: {risk_level}")
+            click.echo(f"[ASK]   Blast Radius: {affected_count} files")
+            click.echo(f"[ASK]   Score: {blast_score}")
+            click.echo(f"[ASK]   Class: {blast_class}")
             click.echo("[ASK] Files that WOULD change:")
-            for file_path in coder_res.get("modified_files", []) + coder_res.get("added_files", []) + coder_res.get("removed_files", []):
+            for file_path in displayed_files:
                 click.echo(f"  - {file_path}")
+            if impact.get("change_impact_matrix"):
+                click.echo("[ASK] Change impact matrix:")
+                for group in ("PRIMARY", "DIRECT", "INDIRECT", "TRANSITIVE"):
+                    group_files = impact["change_impact_matrix"].get(group, [])
+                    click.echo(f"[ASK]   {group}: {len(group_files)} files")
+                    for file_path in group_files[:12]:
+                        click.echo(f"[ASK]     - {file_path}")
+                    if len(group_files) > 12:
+                        click.echo(f"[ASK]     ... {len(group_files) - 12} more")
             click.echo(f"[ASK] Estimated risk: {risk_level}")
             click.echo("[ASK] Telemetry:")
             for key, value in telemetry.items():
@@ -350,7 +373,11 @@ def ask(query: str, shadow: bool) -> None:
             commit_manager = CommitManager(audit_log=commit_audit, approval_manager=approval_manager)
             
             approved = click.confirm(
-                f"[ASK] Commit approval required for {risk_level} risk. Do you authorize this transaction commit?",
+                (
+                    f"[ASK] Commit approval required. Risk: {risk_level}; "
+                    f"Blast Radius: {affected_count} files; Score: {blast_score}; Class: {blast_class}. "
+                    "Do you authorize this transaction commit?"
+                ),
                 default=False,
             )
                 

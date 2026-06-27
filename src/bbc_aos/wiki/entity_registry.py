@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from pathlib import Path
 
 
 EXTENSION_PATTERN = re.compile(r"\.(?:py|pyi|js|jsx|ts|tsx|md|json|yaml|yml|toml|txt|html|css|scss|pdf)$", re.IGNORECASE)
+MAX_ENTITY_ID_LENGTH = 96
 
 
 def normalize_entity_name(value: str) -> str:
@@ -24,7 +26,11 @@ def normalize_entity_name(value: str) -> str:
             continue
         seen.add(part)
         parts.append(part)
-    return "_".join(parts) or "entity"
+    canonical = "_".join(parts) or "entity"
+    if len(canonical) > MAX_ENTITY_ID_LENGTH:
+        digest = hashlib.sha1(canonical.encode("utf-8")).hexdigest()[:12]
+        canonical = f"{canonical[: MAX_ENTITY_ID_LENGTH - 13].rstrip('_')}_{digest}"
+    return canonical
 
 
 class EntityRegistry:

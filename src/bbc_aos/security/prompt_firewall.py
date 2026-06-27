@@ -58,7 +58,7 @@ class PromptFirewall:
         "turn_off_verification": r"\bturn\s+off\s+verification\b|\bdisable\s+verification\b",
         "skip_approval": r"\bskip\s+(?:the\s+)?approval\s+gate\b|\bbypass\s+(?:the\s+)?approval\b",
         "read_secrets": r"\bread\s+(?:the\s+)?secrets?\b|\bexfiltrate\s+(?:secrets?|tokens?|credentials?)\b",
-        "environment_secrets": r"\b(?:print|show|dump|read)\s+(?:environment\s+)?secrets?\b|\benvironment\s+variables?\b",
+        "environment_secrets": r"\b(?:print|show|dump|read)\s+(?:environment\s+)?(?:secrets?|variables?)\b",
         "bypass_sandbox": r"\bbypass\s+(?:the\s+)?sandbox\b",
         "copy_env": r"\bcopy\s+\.env\b|\.env\s+to\s+(?:a\s+)?public\s+folder\b",
         "persist_outside_workspace": r"\b(?:persist|persistence|install\s+persistence)\s+outside\s+(?:the\s+)?workspace\b",
