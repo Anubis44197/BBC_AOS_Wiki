@@ -3,6 +3,8 @@
 import re
 from typing import Iterable, List
 
+from bbc_aos.wiki.entity_registry import normalize_entity_name
+
 
 class BacklinkBuilder:
     """Creates stable Obsidian-style wikilinks."""
@@ -17,4 +19,4 @@ class BacklinkBuilder:
 
     def slug(self, text: str) -> str:
         cleaned = re.sub(r"[^A-Za-z0-9_./ -]+", "", text).strip()
-        return cleaned.replace("\\", "/") or "untitled"
+        return normalize_entity_name(cleaned) or "untitled"

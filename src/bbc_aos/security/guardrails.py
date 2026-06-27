@@ -72,6 +72,10 @@ class SecurityGuardrails:
 
     def validate_prompt(self, prompt: str) -> Dict[str, object]:
         from bbc_aos.security.prompt_firewall import PromptFirewall
+        from bbc_aos.security.policy_integrity_guard import PolicyIntegrityGuard
+        from bbc_aos.security.system_prompt_leak_guard import SystemPromptLeakGuard
+        from bbc_aos.security.tool_permission_guard import ToolPermissionGuard
+        from bbc_aos.security.workspace_escape_guard import WorkspaceEscapeGuard
 
         firewall_result = PromptFirewall().scan(prompt, source="user_prompt")
         findings = [
@@ -83,6 +87,21 @@ class SecurityGuardrails:
             )
             for pattern in firewall_result.detected_patterns
         ]
+        for guard in (
+            SystemPromptLeakGuard(),
+            PolicyIntegrityGuard(),
+            WorkspaceEscapeGuard(),
+            ToolPermissionGuard(),
+        ):
+            for finding in guard.scan(prompt):
+                findings.append(
+                    GuardrailFinding(
+                        severity="BLOCK",
+                        rule_id=f"prompt_{finding.rule_id}",
+                        message=f"BLOCK security guardrail matched: prompt_{finding.rule_id}",
+                        evidence=finding.evidence,
+                    )
+                )
         return {
             "allowed": not findings,
             "findings": [f.to_dict() for f in findings],

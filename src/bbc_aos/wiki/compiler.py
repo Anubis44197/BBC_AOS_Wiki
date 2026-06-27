@@ -6,6 +6,9 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+from bbc_aos.wiki.entity_registry import EntityRegistry, normalize_entity_name
+from bbc_aos.wiki.wikilink_resolver import WikilinkResolver
+
 
 class WikiCompiler:
     """Compiles markdown vault indexes and lightweight semantic search results."""
@@ -34,8 +37,13 @@ class WikiCompiler:
 
     def compile_index(self, project_id: str) -> Path:
         project = self.ensure_project(project_id)
+        registry = EntityRegistry(project)
         self.normalize_entities(project)
         self.deduplicate_concepts(project)
+        self.remove_duplicate_entity_notes(project)
+        self.extract_entities(project, registry)
+        resolver = WikilinkResolver(registry)
+        resolver.repair_project()
         self.generate_backlinks(project)
         self.generate_timeline(project)
         notes = list(project.rglob("*.md"))
@@ -49,9 +57,12 @@ class WikiCompiler:
             "## Recent Activity",
         ]
         for note in sorted(notes, key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
-            lines.append(f"- {time.strftime('%Y-%m-%d', time.localtime(note.stat().st_mtime))}: [[{note.stem}]]")
+            lines.append(f"- {time.strftime('%Y-%m-%d', time.localtime(note.stat().st_mtime))}: [[{registry.register(note.stem, '00_INDEX.md')}]]")
         output = project / "00_INDEX.md"
         output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        resolver.repair_project()
+        self.generate_backlinks(project)
+        self.generate_timeline(project)
         return output
 
     def search(self, query: str, project_id: str = "") -> List[Dict[str, str]]:
@@ -97,7 +108,7 @@ class WikiCompiler:
             return
         seen: dict[str, Path] = {}
         for note in sorted(entities_dir.glob("*.md")):
-            normalized = self._normalize_name(note.stem)
+            normalized = normalize_entity_name(note.stem)
             target = entities_dir / f"{normalized}.md"
             if normalized in seen:
                 self._merge_note(seen[normalized], note)
@@ -118,7 +129,7 @@ class WikiCompiler:
             return
         seen: dict[str, Path] = {}
         for note in sorted(concepts_dir.glob("*.md")):
-            normalized = self._normalize_name(note.stem)
+            normalized = normalize_entity_name(note.stem)
             target = concepts_dir / f"{normalized}.md"
             if normalized in seen:
                 self._merge_note(seen[normalized], note)
@@ -172,6 +183,45 @@ class WikiCompiler:
         output.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return output
 
+    def extract_entities(self, project: Path, registry: EntityRegistry) -> None:
+        source_dirs = [
+            project / "Executions",
+            project / "Lessons_Learned",
+            project / "Concepts",
+            project / "Architecture",
+            project / "Decisions",
+        ]
+        candidates: set[str] = set()
+        existing_non_entities = {
+            normalize_entity_name(note.stem)
+            for note in project.rglob("*.md")
+            if "Entities" not in note.parts
+        }
+        for source_dir in source_dirs:
+            if not source_dir.exists():
+                continue
+            for note in source_dir.glob("*.md"):
+                text = note.read_text(encoding="utf-8", errors="ignore")
+                candidates.update(re.findall(r"\b[A-Za-z0-9_./-]+\.(?:py|md|json|toml|yaml|yml)\b", text))
+                candidates.update(re.findall(r"\b(?:FastAPI|MCP|OAuth|JWT|Bedesten|KVKK|BDDK|KIK|Yargitay|Danistay|Sayistay|Anayasa|UYAP|ASGI|Redis|Markdown|Obsidian|Replay|Audit|Security|Wiki|Context|Planner|Coder|Tester|Verification)\b", text))
+        for candidate in sorted(candidates):
+            if normalize_entity_name(candidate) in existing_non_entities:
+                continue
+            registry.register(candidate, "entity_extraction")
+
+    def remove_duplicate_entity_notes(self, project: Path) -> None:
+        entities_dir = project / "Entities"
+        if not entities_dir.exists():
+            return
+        protected = {
+            normalize_entity_name(note.stem)
+            for note in project.rglob("*.md")
+            if "Entities" not in note.parts
+        }
+        for note in entities_dir.glob("*.md"):
+            if normalize_entity_name(note.stem) in protected:
+                note.unlink(missing_ok=True)
+
     def quality_metrics(self, project_id: str = "") -> Dict[str, float]:
         root = self.vault_root / "Projects" / project_id if project_id else self.vault_root
         notes = list(root.rglob("*.md")) if root.exists() else []
@@ -182,7 +232,7 @@ class WikiCompiler:
                 "backlink_density": 0.0,
                 "empty_note_rate": 0.0,
             }
-        names = [self._normalize_name(note.stem) for note in notes]
+        names = [normalize_entity_name(note.stem) for note in notes]
         duplicate_count = len(names) - len(set(names))
         link_count = 0
         linked: set[str] = set()
@@ -190,7 +240,7 @@ class WikiCompiler:
             text = note.read_text(encoding="utf-8", errors="ignore")
             links = re.findall(r"\[\[([^\]|#]+)", text)
             link_count += len(links)
-            linked.update(self._normalize_name(Path(raw).stem) for raw in links)
+            linked.update(normalize_entity_name(Path(raw).stem) for raw in links)
         empty_count = sum(1 for note in notes if len(note.read_text(encoding="utf-8", errors="ignore").strip()) < 20)
         orphan_count = sum(1 for name in names if name not in linked)
         return {
@@ -201,8 +251,7 @@ class WikiCompiler:
         }
 
     def _normalize_name(self, value: str) -> str:
-        normalized = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
-        return normalized or "note"
+        return normalize_entity_name(value)
 
     def _merge_note(self, target: Path, duplicate: Path) -> None:
         target_text = target.read_text(encoding="utf-8", errors="ignore") if target.exists() else ""
@@ -212,13 +261,13 @@ class WikiCompiler:
 
     def _link_health(self, root: Path) -> tuple[int, int]:
         notes = list(root.rglob("*.md"))
-        stems = {note.stem for note in notes}
+        stems = {normalize_entity_name(note.stem) for note in notes}
         linked: set[str] = set()
         broken = 0
         for note in notes:
             text = note.read_text(encoding="utf-8", errors="ignore")
             for raw in re.findall(r"\[\[([^\]|]+)", text):
-                target = Path(raw).stem
+                target = normalize_entity_name(Path(raw).stem)
                 linked.add(target)
                 if target not in stems:
                     broken += 1

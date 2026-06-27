@@ -1,7 +1,6 @@
 """Architectural invariant checks for BBC-AOS."""
 
 import fnmatch
-import json
 import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
