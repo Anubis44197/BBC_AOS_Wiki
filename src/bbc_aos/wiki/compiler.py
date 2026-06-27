@@ -1,12 +1,12 @@
 """BBC Knowledge Vault compiler, search, and health checks."""
 
-import os
 import re
 import time
 from pathlib import Path
 from typing import Dict, List
 
 from bbc_aos.wiki.entity_registry import EntityRegistry, normalize_entity_name
+from bbc_aos.wiki.paths import resolve_workspace_vault
 from bbc_aos.wiki.wikilink_resolver import WikilinkResolver
 
 
@@ -25,9 +25,8 @@ class WikiCompiler:
         "Backlinks",
     ]
 
-    def __init__(self, vault_root: str = "") -> None:
-        configured_root = vault_root or os.environ.get("BBC_KNOWLEDGE_DIR", "")
-        self.vault_root = Path(configured_root or os.path.expanduser("~/BBC_KNOWLEDGE"))
+    def __init__(self, vault_root: str = "", workspace_root: str | Path = ".") -> None:
+        self.vault_root = resolve_workspace_vault(workspace_root, vault_root or None)
 
     def ensure_project(self, project_id: str) -> Path:
         project = self.vault_root / "Projects" / project_id

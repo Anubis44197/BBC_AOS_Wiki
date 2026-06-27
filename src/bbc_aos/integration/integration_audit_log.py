@@ -55,6 +55,7 @@ class IntegrationAuditLog:
     def __init__(self, project_root: str | Path = ".", load_existing: bool = False) -> None:
         self.project_root = Path(project_root)
         self.audit_path = self.project_root / ".bbc" / "logs" / "integration_audit.jsonl"
+        self.log_path = self.audit_path
         self._events: List[IntegrationAuditEvent] = []
         if load_existing:
             self._load_existing()
@@ -68,7 +69,7 @@ class IntegrationAuditLog:
         """
         self._events.append(event)
         self.audit_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.audit_path.open("a", encoding="utf-8") as audit_file:
+        with self.audit_path.open("a", encoding="utf-8", newline="\n") as audit_file:
             audit_file.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
 
     def append_event(

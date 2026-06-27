@@ -89,7 +89,10 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         manager.init()
         result = manager.kill()
         self.assertEqual(result["status"], "STOPPED")
+        self.assertTrue((root / ".bbc" / "loop" / "kill_switch.json").exists())
         self.assertTrue((root / ".bbc" / "loop" / "KILL_SWITCH").exists())
+        with self.assertRaises(RuntimeError):
+            manager.start("daily_triage", "must not run")
 
     def test_history_and_metrics_are_deterministic(self) -> None:
         root = self._tmp()
@@ -101,7 +104,8 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         metrics = manager.metrics()
         self.assertEqual(len(history), 1)
         self.assertEqual(metrics["success_rate"], 100)
-        self.assertEqual(metrics["average_runtime_ms"], 100)
+        self.assertEqual(metrics["executions"], 2)
+        self.assertEqual(metrics["average_runtime_ms"], 50)
 
     def test_human_readable_state_export(self) -> None:
         root = self._tmp()
@@ -110,6 +114,16 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         state_path = root / "BBC_KNOWLEDGE" / "Loop" / "STATE.md"
         self.assertTrue(state_path.exists())
         self.assertIn("BBC-AOS Loop State", state_path.read_text(encoding="utf-8"))
+
+    def test_pilot_readiness_score_is_at_least_l2(self) -> None:
+        root = self._tmp()
+        (root / "README.md").write_text("# pilot\n", encoding="utf-8")
+        (root / "tests").mkdir()
+        manager = LoopManager(root)
+        manager.init()
+        result = manager.audit()
+        self.assertGreaterEqual(result["readiness_score"], 80)
+        self.assertIn(result["level"], {"L2", "L3"})
 
     def _tmp(self):
         import tempfile

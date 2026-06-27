@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +15,7 @@ from bbc_aos.operations.loop_readiness import LoopReadinessAuditor
 from bbc_aos.operations.loop_registry import LoopRegistry, RegisteredLoop
 from bbc_aos.operations.loop_run_log import LoopRunLog, LoopRunRecord
 from bbc_aos.operations.loop_state import LoopStateRecord, LoopStateStore, OperationalLoopState
+from bbc_aos.wiki.paths import resolve_workspace_vault
 
 
 class LoopManager:
@@ -82,8 +82,17 @@ class LoopManager:
         return self.pattern_registry.get(pattern_name).to_dict()
 
     def start(self, pattern_name: str, goal: str = "") -> dict[str, Any]:
+        if self.kill_switch.active():
+            state = self.state_store.load()
+            state.status = OperationalLoopState.STOPPED.value
+            state.failure_reason = f"kill_switch:{self.kill_switch.reason() or 'active'}"
+            self.state_store.save(state)
+            self.log_run(goal=goal or pattern_name, status="BLOCKED", failure_reason=state.failure_reason)
+            self.export_state()
+            raise RuntimeError("Loop start blocked: kill switch is active")
         pattern = self.pattern_registry.get(pattern_name)
         loop_id = f"{pattern.name}_loop"
+        self.budget_store.enforce()
         state = self.state_store.load()
         state.loop_id = loop_id
         state.status = OperationalLoopState.WAITING_APPROVAL.value if pattern.human_gate == "required" else OperationalLoopState.RUNNING.value
@@ -92,6 +101,7 @@ class LoopManager:
         self.state_store.save(state)
         self.registry.register(RegisteredLoop(loop_id, pattern.name, pattern.mode, state.status))
         self.log_run(goal=state.current_goal, status=state.status, loop_id=loop_id, mode=pattern.mode)
+        self.budget_store.record_execution(runtime_ms=0, shadow=True)
         self.export_state()
         return state.to_dict()
 
@@ -129,7 +139,7 @@ class LoopManager:
 
     def export_state(self) -> Path:
         state = self.state_store.load()
-        vault_path = self.project_root / "BBC_KNOWLEDGE" / "Loop"
+        vault_path = resolve_workspace_vault(self.project_root) / "Loop"
         vault_path.mkdir(parents=True, exist_ok=True)
         output = vault_path / "STATE.md"
         body = (

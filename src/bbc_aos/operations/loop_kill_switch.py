@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 
 class LoopKillSwitch:
@@ -10,16 +12,36 @@ class LoopKillSwitch:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "KILL_SWITCH"
+        self.path = self.project_root / ".bbc" / "loop" / "kill_switch.json"
+        self.legacy_path = self.project_root / ".bbc" / "loop" / "KILL_SWITCH"
 
     def activate(self, reason: str = "manual") -> Path:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(f"active=true\nreason={reason}\n", encoding="utf-8")
+        payload = {"active": True, "reason": reason}
+        self.path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        self.legacy_path.write_text(f"active=true\nreason={reason}\n", encoding="utf-8")
         return self.path
 
     def clear(self) -> None:
         if self.path.exists():
             self.path.unlink()
+        if self.legacy_path.exists():
+            self.legacy_path.unlink()
 
     def active(self) -> bool:
-        return self.path.exists()
+        if self.path.exists():
+            try:
+                data: Any = json.loads(self.path.read_text(encoding="utf-8"))
+                return isinstance(data, dict) and bool(data.get("active"))
+            except Exception:
+                return True
+        return self.legacy_path.exists()
+
+    def reason(self) -> str:
+        if not self.path.exists():
+            return "legacy" if self.legacy_path.exists() else ""
+        try:
+            data: Any = json.loads(self.path.read_text(encoding="utf-8"))
+            return str(data.get("reason", "")) if isinstance(data, dict) else ""
+        except Exception:
+            return "unreadable"

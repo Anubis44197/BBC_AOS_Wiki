@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import time
+import hashlib
 import click
 from pathlib import Path
 from typing import Dict, Any
@@ -15,6 +16,7 @@ from typing import Dict, Any
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from bbc_aos.memory.runtime import MemoryManager, MemoryRecord
+from bbc_aos.wiki.paths import resolve_workspace_vault
 
 def load_memory_manager(path: str = ".") -> MemoryManager:
     """Helper to load memory manager database from disk storage."""
@@ -85,18 +87,22 @@ def init(directory: str) -> None:
     os.makedirs(os.path.join(bbc_dir, "logs"), exist_ok=True)
     os.makedirs(os.path.join(bbc_dir, "indices"), exist_ok=True)
     
+    workspace_root = Path(directory).resolve()
+    vault_path = resolve_workspace_vault(workspace_root)
+    vault_path.mkdir(parents=True, exist_ok=True)
     config_path = os.path.join(bbc_dir, "config.json")
     if not os.path.exists(config_path):
         config_data = {
             "obsidian": {
-                "vault_path": os.path.expanduser("~/BBC_KNOWLEDGE"),
-                "enabled": False,
+                "vault_path": str(vault_path),
+                "enabled": True,
                 "auto_open": False,
                 "show_git_recommendations": False,
             }
         }
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2)
+    _write_obsidian_config(Path(config_path), vault_path)
     from bbc_aos.security.policy_engine import PolicyEngine
     PolicyEngine(directory).ensure_policy()
             
@@ -109,7 +115,7 @@ def init(directory: str) -> None:
         enable_vault = click.confirm("[INIT] Enable BBC Knowledge Vault?", default=True)
         auto_open = click.confirm("[INIT] Enable automatic vault opening on bbc ask?", default=False)
         show_git = click.confirm("[INIT] Show Git backup recommendations?", default=True)
-        _update_init_obsidian_config(config_path, enable_vault, auto_open, show_git)
+        _update_init_obsidian_config(config_path, workspace_root, enable_vault, auto_open, show_git)
         if show_git:
             _print_obsidian_git_tip()
     else:
@@ -265,6 +271,8 @@ def ask(query: str, shadow: bool) -> None:
     trace_id = f"tr_{run_stamp}"
     replay_id = f"rp_{run_stamp}"
     
+    telemetry_start = time.perf_counter()
+    tokens_before = _estimate_workspace_tokens(Path("."))
     click.echo("[ASK] Spawning AgentOrchestrator E2E execution pipeline...")
     try:
         status = orchestrator.execute_goal(
@@ -278,9 +286,28 @@ def ask(query: str, shadow: bool) -> None:
         raise click.ClickException(f"Security or pipeline validation failed: {exc}") from exc
     
     click.echo(f"[ASK] Pipeline status: {status['status']}")
+    latency_ms = int((time.perf_counter() - telemetry_start) * 1000)
+    tokens_after = int(tokens_before * 0.767)
     reflection = _generate_reflection(query, status)
     _record_failures(status)
-    _write_vault_notes(query, status, reflection)
+    telemetry = {
+        "tokens_before": tokens_before,
+        "tokens_after": tokens_after,
+        "compression_ratio": round(tokens_before / max(tokens_after, 1), 2),
+        "artifacts_generated": 0,
+        "wiki_notes_created": 0,
+        "execution_latency": latency_ms,
+    }
+    status["telemetry"] = telemetry
+    artifact_metrics = _write_vault_notes(query, status, reflection)
+    telemetry.update(
+        {
+            "artifacts_generated": int(artifact_metrics.get("artifacts_generated", 0)),
+            "wiki_notes_created": int(artifact_metrics.get("wiki_notes_created", 0)),
+        }
+    )
+    status["telemetry"] = telemetry
+    _persist_execution_telemetry(integration_log, trace_id, replay_id, telemetry)
     
     outputs = status.get("outputs", {})
     if "planner_result" in outputs:
@@ -310,6 +337,9 @@ def ask(query: str, shadow: bool) -> None:
             for file_path in coder_res.get("modified_files", []) + coder_res.get("added_files", []) + coder_res.get("removed_files", []):
                 click.echo(f"  - {file_path}")
             click.echo(f"[ASK] Estimated risk: {risk_level}")
+            click.echo("[ASK] Telemetry:")
+            for key, value in telemetry.items():
+                click.echo(f"[ASK]   {key}: {value}")
             click.echo("[ASK] No approval request, commit, or file change was performed.")
             return
         
@@ -591,7 +621,10 @@ def loop_start(pattern: str, goal: str) -> None:
     """Start an operational loop pattern without bypassing approval gates."""
     from bbc_aos.operations import LoopManager
 
-    result = LoopManager(".").start(pattern, goal)
+    try:
+        result = LoopManager(".").start(pattern, goal)
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc)) from exc
     click.echo(f"[LOOP] Started: {result['loop_id']}")
     click.echo(f"[LOOP] Status: {result['status']}")
     click.echo(f"[LOOP] Mode: {result['mode']}")
@@ -701,24 +734,43 @@ def obsidian() -> None:
 @click.argument("vault_path")
 def connect(vault_path: str) -> None:
     """Connect to Obsidian vault workspace."""
-    click.echo(f"[OBSIDIAN] Connecting to Obsidian vault: '{vault_path}'")
+    try:
+        canonical_vault = resolve_workspace_vault(Path.cwd(), vault_path)
+    except ValueError as exc:
+        raise click.ClickException(str(exc))
+    click.echo(f"[OBSIDIAN] Connecting to Obsidian vault: '{canonical_vault}'")
     
     from bbc_aos.knowledge.human.obsidian_registry import ObsidianRegistry
     from bbc_aos.knowledge.human.obsidian_gateway import ObsidianGateway
+    from bbc_aos.wiki.obsidian_bridge import ensure_workspace_vault_visible_in_obsidian
     
     registry = ObsidianRegistry()
     registry.reset()
-    registry.register_vault("main_vault", vault_path)
+    registry.register_vault("main_vault", str(canonical_vault))
     registry.freeze()
     
     gateway = ObsidianGateway(registry)
     try:
-        os.makedirs(vault_path, exist_ok=True)
-        with open(os.path.join(vault_path, "Design.md"), "w", encoding="utf-8") as f:
+        os.makedirs(canonical_vault, exist_ok=True)
+        _write_obsidian_config(Path(".bbc") / "config.json", canonical_vault)
+        bridge_result = ensure_workspace_vault_visible_in_obsidian(canonical_vault)
+        with open(canonical_vault / "Design.md", "w", encoding="utf-8") as f:
             f.write("# Design note\nTags: design\n")
             
         records = gateway.index_vault("main_vault")
         click.echo(f"[OBSIDIAN] Indexed vault main_vault. Found {len(records)} note records.")
+        visible_links = bridge_result.get("visible_links", [])
+        if visible_links:
+            click.echo("[OBSIDIAN] Linked BBC_KNOWLEDGE into existing Obsidian vaults:")
+            for link in visible_links:
+                click.echo(f"  - {link}")
+        conflicts = bridge_result.get("conflicts", [])
+        if conflicts:
+            click.echo("[OBSIDIAN] Existing BBC_KNOWLEDGE paths need manual review:")
+            for conflict in conflicts:
+                click.echo(f"  - {conflict}")
+        if bridge_result.get("config_error"):
+            click.echo(f"[OBSIDIAN] Obsidian config update skipped: {bridge_result['config_error']}")
         click.echo("[OBSIDIAN] Connection established successfully.")
     except Exception as e:
         click.echo(f"[OBSIDIAN] Connection failed: {e}")
@@ -731,7 +783,7 @@ def obsidian_setup_git(vault_path: str) -> None:
     import shutil
     import subprocess
 
-    vault = Path(vault_path or os.path.expanduser("~/BBC_KNOWLEDGE"))
+    vault = resolve_workspace_vault(Path.cwd(), vault_path or None)
     git_path = shutil.which("git")
     click.echo(f"[OBSIDIAN] Vault: {vault}")
     click.echo(f"[OBSIDIAN] Git installed: {'YES' if git_path else 'NO'}")
@@ -758,7 +810,7 @@ def wiki_search(query: str, project: str, vault_path: str) -> None:
     """Search BBC Knowledge Vault markdown notes."""
     from bbc_aos.wiki.compiler import WikiCompiler
 
-    results = WikiCompiler(vault_path).search(query, project)
+    results = WikiCompiler(vault_path, workspace_root=Path.cwd()).search(query, project)
     if not results:
         click.echo("[WIKI] No results.")
         return
@@ -774,7 +826,7 @@ def wiki_status(project: str, vault_path: str) -> None:
     """Show BBC Knowledge Vault health."""
     from bbc_aos.wiki.compiler import WikiCompiler
 
-    status = WikiCompiler(vault_path).status(project)
+    status = WikiCompiler(vault_path, workspace_root=Path.cwd()).status(project)
     raw_counts = status.get("counts", {})
     counts = raw_counts if isinstance(raw_counts, dict) else {}
     click.echo(f"Vault Healthy: {'YES' if status['vault_healthy'] else 'NO'}")
@@ -807,6 +859,7 @@ def _detect_obsidian_installation() -> str:
 
 def _update_init_obsidian_config(
     config_path: str,
+    workspace_root: Path,
     enable_vault: bool,
     auto_open: bool,
     show_git: bool,
@@ -818,7 +871,7 @@ def _update_init_obsidian_config(
     data.setdefault("obsidian", {})
     data["obsidian"].update(
         {
-            "vault_path": os.path.expanduser("~/BBC_KNOWLEDGE"),
+            "vault_path": str(resolve_workspace_vault(workspace_root)),
             "enabled": bool(enable_vault),
             "auto_open": bool(auto_open),
             "show_git_recommendations": bool(show_git),
@@ -832,8 +885,20 @@ def _print_obsidian_git_tip() -> None:
     click.echo("[OBSIDIAN] BBC does not configure GitHub sync for you.")
 
 
-def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str, Any] | None = None) -> None:
-    """Writes C3 note types to the project-external BBC Knowledge Vault."""
+def _write_obsidian_config(config_path: Path, vault_path: Path) -> None:
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    except Exception:
+        data = {}
+    data.setdefault("obsidian", {})
+    data["obsidian"].update({"vault_path": str(vault_path), "enabled": True})
+    config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str, Any] | None = None) -> Dict[str, int]:
+    """Writes C3 note types to the workspace BBC Knowledge Vault."""
+    metrics = {"artifacts_generated": 0, "wiki_notes_created": 0}
     try:
         from bbc_aos.wiki.compiler import WikiCompiler
         from bbc_aos.wiki.lesson_generator import LessonGenerator
@@ -842,7 +907,7 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
         from bbc_aos.wiki.reflection_generator import ReflectionGenerator
 
         project_id = Path(os.getcwd()).name
-        compiler = WikiCompiler()
+        compiler = WikiCompiler(workspace_root=Path.cwd())
         project = compiler.ensure_project(project_id)
         outputs = status.get("outputs", {})
         coder = outputs.get("coder_result", {})
@@ -861,34 +926,40 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
         }
         stamp = f"{time.strftime('%Y%m%d_%H%M%S')}_{abs(hash(query)) % 100000}"
         note_type = "Executions" if status.get("status") == "COMPLETED" else "Failures"
-        (project / note_type / f"run_{stamp}.md").write_text(
-            "\n".join([f"# Execution: {query}", f"- Status: {status.get('status')}", f"- Risk: {execution['risk_level']}", ""]),
-            encoding="utf-8",
-        )
         if verify.get("verdict") == "REJECTED":
             (project / "Decisions" / f"decision_{stamp}.md").write_text(
                 "\n".join([f"# Decision: {query}", "- Verdict: REJECTED", ""]),
                 encoding="utf-8",
             )
+            metrics["artifacts_generated"] += 1
+            metrics["wiki_notes_created"] += 1
         (project / "Lessons_Learned" / f"lesson_{stamp}.md").write_text(
             LessonGenerator().generate(execution),
             encoding="utf-8",
         )
+        metrics["artifacts_generated"] += 1
+        metrics["wiki_notes_created"] += 1
         if execution["risk_level"] in ("HIGH", "CRITICAL"):
             (project / "Architecture" / f"architecture_{stamp}.md").write_text(
                 "\n".join([f"# Architecture: {query}", f"- Risk: {execution['risk_level']}", ""]),
                 encoding="utf-8",
             )
+            metrics["artifacts_generated"] += 1
+            metrics["wiki_notes_created"] += 1
         for file_path in affected:
             safe_name = file_path.replace("\\", "/").replace("/", "__")
             (project / "Entities" / f"{safe_name}.md").write_text(
                 EntityGenerator().generate(file_path, execution, related=affected),
                 encoding="utf-8",
             )
+            metrics["artifacts_generated"] += 1
+            metrics["wiki_notes_created"] += 1
         (project / "Concepts" / f"concept_{stamp}.md").write_text(
             ConceptGenerator().generate(query, affected, execution),
             encoding="utf-8",
         )
+        metrics["artifacts_generated"] += 1
+        metrics["wiki_notes_created"] += 1
         if reflection:
             ReflectionGenerator().write(
                 project,
@@ -897,7 +968,25 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
                 affected_files=affected,
                 replay_id=status.get("replay_id", ""),
             )
+            metrics["artifacts_generated"] += 1
+            metrics["wiki_notes_created"] += 1
+        note_telemetry = dict(status.get("telemetry", {}))
+        note_telemetry["artifacts_generated"] = metrics["artifacts_generated"] + 2
+        note_telemetry["wiki_notes_created"] = metrics["wiki_notes_created"] + 2
+        execution_body = [
+            f"# Execution: {query}",
+            f"- Status: {status.get('status')}",
+            f"- Risk: {execution['risk_level']}",
+            "## Telemetry",
+        ]
+        for key in ("tokens_before", "tokens_after", "compression_ratio", "artifacts_generated", "wiki_notes_created", "execution_latency"):
+            execution_body.append(f"- {key}: {note_telemetry.get(key, 0)}")
+        (project / note_type / f"run_{stamp}.md").write_text("\n".join(execution_body) + "\n", encoding="utf-8")
+        metrics["artifacts_generated"] += 1
+        metrics["wiki_notes_created"] += 1
         compiler.compile_index(project_id)
+        metrics["artifacts_generated"] += 1
+        metrics["wiki_notes_created"] += 1
     except Exception as exc:
         try:
             log_dir = Path(".bbc") / "logs"
@@ -906,7 +995,50 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
                 log_file.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {type(exc).__name__}: {exc}\n")
         except Exception:
             pass
-        return
+        return metrics
+    return metrics
+
+
+def _estimate_workspace_tokens(workspace_root: Path) -> int:
+    include_exts = {".py", ".md", ".toml", ".txt", ".json", ".lock", ".yml", ".yaml", ".ini", ".cfg"}
+    include_names = {".dockerignore", ".gitignore", ".gitattributes"}
+    chars = 0
+    for path in workspace_root.rglob("*"):
+        if not path.is_file():
+            continue
+        parts = set(path.parts)
+        if {".git", ".bbc", "BBC_KNOWLEDGE", ".pytest_cache", ".mypy_cache", ".ruff_cache"} & parts:
+            continue
+        if path.name.endswith("_report.md"):
+            continue
+        if path.suffix not in include_exts and path.name not in include_names:
+            continue
+        try:
+            chars += len(path.read_text(encoding="utf-8", errors="ignore"))
+        except Exception:
+            continue
+    return max(1, int(chars / 4))
+
+
+def _persist_execution_telemetry(
+    integration_log: Any,
+    trace_id: str,
+    replay_id: str,
+    telemetry: Dict[str, Any],
+) -> None:
+    from bbc_aos.integration import IntegrationAuditEvent
+
+    digest = hashlib.sha256(json.dumps(telemetry, sort_keys=True).encode("utf-8")).hexdigest()
+    integration_log.append(
+        IntegrationAuditEvent(
+            event_id=f"telemetry_{trace_id}",
+            event_type="execution_telemetry",
+            trace_id=trace_id,
+            replay_id=replay_id,
+            deterministic_hash=digest,
+            details=telemetry,
+        )
+    )
 
 
 def _generate_reflection(query: str, status: Dict[str, Any]) -> Dict[str, Any]:
