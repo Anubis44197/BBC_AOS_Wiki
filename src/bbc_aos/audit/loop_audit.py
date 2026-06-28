@@ -5,6 +5,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+from bbc_aos.runtime_paths import logs_dir, runtime_file
+
 
 class LoopAudit:
     """Aggregates execution, commit, and failure memory data."""
@@ -13,8 +15,8 @@ class LoopAudit:
         self.root = Path(project_root)
 
     def summary(self) -> Dict[str, Any]:
-        events = self._load_jsonl(self.root / ".bbc" / "logs" / "commit_audit.jsonl")
-        failures = self._load_jsonl(self.root / ".bbc" / "failure_memory.jsonl")
+        events = self._load_jsonl(logs_dir(self.root) / "commit_audit.jsonl")
+        failures = self._load_jsonl(runtime_file(self.root, "failure_memory.jsonl"))
         executions = len(events)
         rollback_count = len([e for e in events if str(e.get("status", "")).upper() == "ROLLED_BACK"])
         file_counts: Counter[str] = Counter()

@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, List
 
+from bbc_aos.runtime_paths import logs_dir
+
 @dataclass(frozen=True)
 class IntegrationAuditEvent:
     """
@@ -54,7 +56,7 @@ class IntegrationAuditLog:
     """
     def __init__(self, project_root: str | Path = ".", load_existing: bool = False) -> None:
         self.project_root = Path(project_root)
-        self.audit_path = self.project_root / ".bbc" / "logs" / "integration_audit.jsonl"
+        self.audit_path = logs_dir(self.project_root) / "integration_audit.jsonl"
         self.log_path = self.audit_path
         self._events: List[IntegrationAuditEvent] = []
         if load_existing:

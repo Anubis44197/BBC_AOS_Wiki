@@ -6,12 +6,14 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+from bbc_aos.runtime_paths import runtime_file
+
 
 class FailureMemory:
     """Append-only JSONL failure memory with occurrence counters."""
 
     def __init__(self, project_root: str = ".") -> None:
-        self.path = Path(project_root) / ".bbc" / "failure_memory.jsonl"
+        self.path = runtime_file(project_root, "failure_memory.jsonl")
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def record_failure(

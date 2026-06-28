@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 
+from bbc_aos.runtime_paths import loop_dir
+
 
 @dataclass(frozen=True)
 class RegisteredLoop:
@@ -21,7 +23,7 @@ class LoopRegistry:
     """File-backed registered-loop index."""
 
     def __init__(self, project_root: str | Path = ".") -> None:
-        self.path = Path(project_root) / ".bbc" / "loop" / "registry.json"
+        self.path = loop_dir(project_root) / "registry.json"
 
     def list(self) -> list[RegisteredLoop]:
         if not self.path.exists():

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bbc_aos.operations.loop_exceptions import LoopBudgetExceededError
+from bbc_aos.runtime_paths import loop_dir
 
 
 @dataclass
@@ -36,7 +37,7 @@ class LoopBudgetStore:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "budget.json"
+        self.path = loop_dir(self.project_root) / "budget.json"
 
     def load(self) -> LoopBudget:
         if not self.path.exists():

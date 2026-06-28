@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 
+from bbc_aos.runtime_paths import loop_dir
+
 
 @dataclass(frozen=True)
 class LoopRunRecord:
@@ -29,7 +31,7 @@ class LoopRunLog:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "run_log.jsonl"
+        self.path = loop_dir(self.project_root) / "run_log.jsonl"
 
     def append(self, record: LoopRunRecord) -> LoopRunRecord:
         self.path.parent.mkdir(parents=True, exist_ok=True)

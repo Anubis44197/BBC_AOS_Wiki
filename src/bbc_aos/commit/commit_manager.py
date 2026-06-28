@@ -320,7 +320,9 @@ class CommitManager:
             return
 
         abs_root = Path(workspace_root).resolve()
-        backups_dir = abs_root / ".bbc" / "backups"
+        from bbc_aos.runtime_paths import runtime_file
+
+        backups_dir = runtime_file(abs_root, "backups")
         backups_dir.mkdir(parents=True, exist_ok=True)
         parsed_files = self._parse_unified_diff(patch)
 

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from bbc_aos.operations.loop_exceptions import InvalidLoopModeError
+from bbc_aos.runtime_paths import loop_dir
 
 
 class LoopMode(str, Enum):
@@ -50,7 +51,7 @@ class LoopModeStore:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "mode.json"
+        self.path = loop_dir(self.project_root) / "mode.json"
 
     def get(self) -> LoopModeRecord:
         if not self.path.exists():

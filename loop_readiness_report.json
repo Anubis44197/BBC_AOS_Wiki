@@ -31,7 +31,7 @@
     },
     {
       "name": "stop_conditions",
-      "path": "src/bbc_aos/loop",
+      "path": "src/bbc_aos/operations/loop_state.py",
       "weight": 8
     },
     {
@@ -56,12 +56,12 @@
     },
     {
       "name": "replay_support",
-      "path": "src/bbc_aos/loop/replay_engine.py",
+      "path": "src/bbc_aos/integration/replay_engine.py",
       "weight": 8
     },
     {
       "name": "observability",
-      "path": "src/bbc_aos/observability",
+      "path": "src/bbc_aos/audit",
       "weight": 6
     },
     {

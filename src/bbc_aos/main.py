@@ -16,15 +16,16 @@ from typing import Dict, Any
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from bbc_aos.memory.runtime import MemoryManager, MemoryRecord
+from bbc_aos.runtime_paths import logs_dir, runtime_dir, runtime_file, state_dir
 from bbc_aos.wiki.paths import resolve_workspace_vault
 
 def load_memory_manager(path: str = ".") -> MemoryManager:
     """Helper to load memory manager database from disk storage."""
     memory_manager = MemoryManager()
-    db_path = os.path.join(path, ".bbc", "memory_db.json")
-    if os.path.exists(db_path):
+    db_path = runtime_file(path, "memory_db.json")
+    if db_path.exists():
         try:
-            with open(db_path, "r", encoding="utf-8") as db_f:
+            with db_path.open("r", encoding="utf-8") as db_f:
                 db_serialized = json.load(db_f)
             for layer, records_list in db_serialized.items():
                 for r_dict in records_list:
@@ -46,9 +47,9 @@ def load_memory_manager(path: str = ".") -> MemoryManager:
 
 def save_memory_manager(memory_manager: MemoryManager, path: str = ".") -> None:
     """Helper to save memory manager database to disk storage."""
-    bbc_dir = os.path.join(path, ".bbc")
-    os.makedirs(bbc_dir, exist_ok=True)
-    db_path = os.path.join(bbc_dir, "memory_db.json")
+    bbc_dir = runtime_dir(path)
+    bbc_dir.mkdir(parents=True, exist_ok=True)
+    db_path = bbc_dir / "memory_db.json"
     
     db_serialized = {}
     for layer, records in memory_manager._database.items():
@@ -66,7 +67,7 @@ def save_memory_manager(memory_manager: MemoryManager, path: str = ".") -> None:
             for r in records
         ]
     try:
-        with open(db_path, "w", encoding="utf-8") as db_f:
+        with db_path.open("w", encoding="utf-8") as db_f:
             json.dump(db_serialized, db_f, indent=2)
     except Exception:
         pass
@@ -82,16 +83,15 @@ def cli() -> None:
 @click.option("--dir", "directory", default=".", help="Target directory to initialize.")
 def init(directory: str) -> None:
     """Initialize a new BBC-AOS project workspace."""
-    bbc_dir = os.path.join(directory, ".bbc")
-    os.makedirs(os.path.join(bbc_dir, "state"), exist_ok=True)
-    os.makedirs(os.path.join(bbc_dir, "logs"), exist_ok=True)
-    os.makedirs(os.path.join(bbc_dir, "indices"), exist_ok=True)
-    
     workspace_root = Path(directory).resolve()
+    bbc_dir = runtime_dir(workspace_root)
+    state_dir(workspace_root).mkdir(parents=True, exist_ok=True)
+    logs_dir(workspace_root).mkdir(parents=True, exist_ok=True)
+    (bbc_dir / "indices").mkdir(parents=True, exist_ok=True)
     vault_path = resolve_workspace_vault(workspace_root)
     vault_path.mkdir(parents=True, exist_ok=True)
-    config_path = os.path.join(bbc_dir, "config.json")
-    if not os.path.exists(config_path):
+    config_path = bbc_dir / "config.json"
+    if not config_path.exists():
         config_data = {
             "obsidian": {
                 "vault_path": str(vault_path),
@@ -100,15 +100,15 @@ def init(directory: str) -> None:
                 "show_git_recommendations": False,
             }
         }
-        with open(config_path, "w", encoding="utf-8") as f:
+        with config_path.open("w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2)
-    _write_obsidian_config(Path(config_path), vault_path)
+    _write_obsidian_config(config_path, vault_path)
     from bbc_aos.security.policy_engine import PolicyEngine
     PolicyEngine(directory).ensure_policy()
             
     click.echo("[INIT] Initialized BBC-AOS repository structure.")
-    click.echo("[INIT] Created .bbc/ database, logs, state, and index directories.")
-    click.echo("[INIT] Created .bbc/config.json template.")
+    click.echo(f"[INIT] Created ghost runtime workspace: {bbc_dir}")
+    click.echo(f"[INIT] Created BBC Knowledge Vault: {vault_path}")
     obsidian_detected = _detect_obsidian_installation()
     if obsidian_detected:
         click.echo(f"[INIT] Obsidian installation detected at: {obsidian_detected}")
@@ -550,7 +550,7 @@ def daemon_start(goal: str, max_iter: int, auto_approve: bool) -> None:
     """Start an interactive daemon loop."""
     from bbc_aos.loop.loop_engine import LoopEngine
 
-    status_path = Path(".bbc") / "daemon_status.json"
+    status_path = runtime_file(".", "daemon_status.json")
     status_path.parent.mkdir(parents=True, exist_ok=True)
     if not goal:
         goal = click.prompt("[DAEMON] Goal", default="review current project")
@@ -565,7 +565,7 @@ def daemon_start(goal: str, max_iter: int, auto_approve: bool) -> None:
 @daemon.command("stop")
 def daemon_stop() -> None:
     """Stop daemon state tracking."""
-    status_path = Path(".bbc") / "daemon_status.json"
+    status_path = runtime_file(".", "daemon_status.json")
     status_path.parent.mkdir(parents=True, exist_ok=True)
     status_path.write_text(json.dumps({"running": False, "stopped_at": time.time()}, indent=2), encoding="utf-8")
     click.echo("[DAEMON] Stopped.")
@@ -574,7 +574,7 @@ def daemon_stop() -> None:
 @daemon.command("status")
 def daemon_status() -> None:
     """Show daemon status."""
-    status_path = Path(".bbc") / "daemon_status.json"
+    status_path = runtime_file(".", "daemon_status.json")
     if not status_path.exists():
         click.echo("[DAEMON] No daemon status found.")
         return
@@ -779,7 +779,7 @@ def connect(vault_path: str) -> None:
     gateway = ObsidianGateway(registry)
     try:
         os.makedirs(canonical_vault, exist_ok=True)
-        _write_obsidian_config(Path(".bbc") / "config.json", canonical_vault)
+        _write_obsidian_config(runtime_file(".", "config.json"), canonical_vault)
         bridge_result = ensure_workspace_vault_visible_in_obsidian(canonical_vault)
         with open(canonical_vault / "Design.md", "w", encoding="utf-8") as f:
             f.write("# Design note\nTags: design\n")
@@ -885,7 +885,7 @@ def _detect_obsidian_installation() -> str:
 
 
 def _update_init_obsidian_config(
-    config_path: str,
+    config_path: str | Path,
     workspace_root: Path,
     enable_vault: bool,
     auto_open: bool,
@@ -1016,7 +1016,7 @@ def _write_vault_notes(query: str, status: Dict[str, Any], reflection: Dict[str,
         metrics["wiki_notes_created"] += 1
     except Exception as exc:
         try:
-            log_dir = Path(".bbc") / "logs"
+            log_dir = logs_dir(".")
             log_dir.mkdir(parents=True, exist_ok=True)
             with (log_dir / "wiki_errors.log").open("a", encoding="utf-8") as log_file:
                 log_file.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {type(exc).__name__}: {exc}\n")
@@ -1084,7 +1084,7 @@ def _generate_reflection(query: str, status: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
         reflection = agent.execute(params)
-        reflection_dir = Path(".bbc") / "reflections"
+        reflection_dir = runtime_file(".", "reflections")
         reflection_dir.mkdir(parents=True, exist_ok=True)
         reflection_path = reflection_dir / f"{status.get('trace_id', 'trace')}_{status.get('replay_id', 'replay')}.json"
         reflection_path.write_text(json.dumps(reflection, indent=2), encoding="utf-8")

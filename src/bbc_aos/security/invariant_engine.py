@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+from bbc_aos.runtime_paths import runtime_file
+
 
 DEFAULT_INVARIANTS: Dict[str, Any] = {
     "forbidden_paths": [],
@@ -21,7 +23,7 @@ class InvariantEngine:
 
     def __init__(self, project_root: str = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "invariants.yaml"
+        self.path = runtime_file(self.project_root, "invariants.yaml")
 
     def ensure_config(self) -> Dict[str, Any]:
         self.path.parent.mkdir(parents=True, exist_ok=True)

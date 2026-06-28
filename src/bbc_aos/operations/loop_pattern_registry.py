@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from bbc_aos.operations.loop_exceptions import UnknownLoopPatternError
+from bbc_aos.runtime_paths import loop_dir
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,7 @@ class LoopPatternRegistry:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.patterns_path = self.project_root / ".bbc" / "loop" / "patterns.yaml"
+        self.patterns_path = loop_dir(self.project_root) / "patterns.yaml"
 
     def all(self) -> list[LoopPattern]:
         return sorted(DEFAULT_PATTERNS, key=lambda pattern: pattern.name)

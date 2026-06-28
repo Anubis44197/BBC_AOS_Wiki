@@ -5,13 +5,15 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+from bbc_aos.runtime_paths import state_dir
+
 
 class CheckpointManager:
     """Stores iteration snapshots under `.bbc/state`."""
 
     def __init__(self, project_root: str = ".") -> None:
         self.project_root = Path(project_root)
-        self.state_dir = self.project_root / ".bbc" / "state"
+        self.state_dir = state_dir(self.project_root)
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
     def create(self, payload: Dict[str, Any]) -> Dict[str, Any]:

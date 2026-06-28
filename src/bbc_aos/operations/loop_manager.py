@@ -15,6 +15,7 @@ from bbc_aos.operations.loop_readiness import LoopReadinessAuditor
 from bbc_aos.operations.loop_registry import LoopRegistry, RegisteredLoop
 from bbc_aos.operations.loop_run_log import LoopRunLog, LoopRunRecord
 from bbc_aos.operations.loop_state import LoopStateRecord, LoopStateStore, OperationalLoopState
+from bbc_aos.runtime_paths import loop_dir
 from bbc_aos.wiki.paths import resolve_workspace_vault
 
 
@@ -32,14 +33,14 @@ class LoopManager:
         self.registry = LoopRegistry(self.project_root)
 
     def init(self) -> dict[str, str]:
-        loop_dir = self.project_root / ".bbc" / "loop"
-        loop_dir.mkdir(parents=True, exist_ok=True)
+        loop_root = loop_dir(self.project_root)
+        loop_root.mkdir(parents=True, exist_ok=True)
         self.mode_store.set("L2")
         self.state_store.save(LoopStateRecord())
         self.budget_store.save(self.budget_store.load())
         self.pattern_registry.write_default_yaml()
         self.export_state()
-        return {"loop_dir": str(loop_dir), "mode": "L2"}
+        return {"loop_dir": str(loop_root), "mode": "L2"}
 
     def set_mode(self, mode: str) -> dict[str, object]:
         record = self.mode_store.set(mode)

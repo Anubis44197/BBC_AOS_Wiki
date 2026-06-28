@@ -10,6 +10,7 @@ from typing import Any
 
 from bbc_aos.operations.loop_exceptions import InvalidLoopStateError
 from bbc_aos.operations.loop_mode import LoopMode
+from bbc_aos.runtime_paths import loop_dir
 
 
 class OperationalLoopState(str, Enum):
@@ -84,7 +85,7 @@ class LoopStateStore:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "STATE.json"
+        self.path = loop_dir(self.project_root) / "STATE.json"
 
     def load(self) -> LoopStateRecord:
         if not self.path.exists():

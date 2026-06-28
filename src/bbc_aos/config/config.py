@@ -7,6 +7,8 @@ import os
 import logging
 from typing import Dict, Any
 
+from bbc_aos.runtime_paths import runtime_dir, runtime_file
+
 # Set up logging
 logger = logging.getLogger("bbc_aos.config.config")
 
@@ -34,8 +36,8 @@ class BBCConfig:
     CONTEXT_SEGMENTS_FILE: str = "context_segments.json"
     INCREMENTAL_HASH_ALGO: str = "sha256"
     
-    # BBC isolation directory
-    BBC_DIR: str = ".bbc"
+    # Logical BBC isolation directory, physically stored in the ghost workspace.
+    BBC_DIR: str = "runtime"
     
     # BBC Policy Defaults
     BBC_INSTRUCTIONS_VERSION: str = "1.0"
@@ -46,22 +48,22 @@ class BBCConfig:
     @staticmethod
     def get_bbc_dir(project_root: str = ".") -> str:
         """
-        Gets or creates the .bbc isolation directory.
+        Gets or creates the BBC-AOS ghost runtime directory.
 
         Args:
             project_root: The root path of the project. Defaults to current directory.
 
         Returns:
-            The absolute or relative path to the .bbc directory.
+            The absolute path to the ghost runtime directory.
         """
-        bbc_dir = os.path.join(project_root, BBCConfig.BBC_DIR)
-        os.makedirs(bbc_dir, exist_ok=True)
-        return bbc_dir
+        bbc_dir = runtime_dir(project_root)
+        bbc_dir.mkdir(parents=True, exist_ok=True)
+        return str(bbc_dir)
 
     @staticmethod
     def get_context_path(project_root: str = ".") -> str:
         """
-        Gets the path to bbc_context.json inside the .bbc/ isolation directory.
+        Gets the path to bbc_context.json inside the ghost runtime directory.
 
         Args:
             project_root: The root path of the project.
@@ -69,5 +71,4 @@ class BBCConfig:
         Returns:
             The path to the context JSON file.
         """
-        bbc_dir = BBCConfig.get_bbc_dir(project_root)
-        return os.path.join(bbc_dir, "bbc_context.json")
+        return str(runtime_file(project_root, "bbc_context.json"))

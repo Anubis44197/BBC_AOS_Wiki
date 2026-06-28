@@ -120,7 +120,7 @@ Connects your code memory with your Obsidian knowledge vault:
 * `bbc loop mode <l1|l2|l3>`: Set rollout mode.
 * `bbc loop patterns`: List operational loop patterns.
 * `bbc loop start <pattern>`: Start a loop pattern without bypassing approval gates.
-* `bbc loop status`: Show `.bbc/loop/STATE.json`.
+* `bbc loop status`: Show ghost workspace loop state.
 * `bbc loop budget`: Show loop limits and counters.
 * `bbc loop history`: Show append-only run history.
 * `bbc loop kill`: Activate the hard stop switch.
@@ -146,7 +146,7 @@ Connects your code memory with your Obsidian knowledge vault:
 ## 13. Limitations
 
 * Multi-language projects are parsed with custom regex mapping but full semantic symbol graph construction is optimized primarily for Python codebases.
-* Replay systems depend on local `.bbc` audit logs; moving or deleting the audit directories prevents historical reconstruction.
+* Replay systems depend on BBC-AOS ghost workspace audit logs; moving or deleting that runtime directory prevents historical reconstruction.
 * BBC-AOS does not auto-commit by default. Every commit path requires explicit user approval.
 * BBC-AOS does not configure GitHub sync for Obsidian. Use the Obsidian Git plugin under your own control.
 
@@ -214,9 +214,20 @@ The daemon does not auto-commit by default. `--auto-approve` only allows LOW-ris
 
 ---
 
-## 19. Obsidian + Git Backup
+## 19. Ghost Workspace And Obsidian
 
-BBC Knowledge Vault defaults to `~/BBC_KNOWLEDGE`, outside the project directory.
+BBC-AOS runs in Ghost Workspace mode by default. It does not create `.bbc/`, `BBC_KNOWLEDGE/`, or `loop_readiness_report.json` inside the target project root.
+
+Runtime files are stored under:
+
+```text
+~/BBC_WORKSPACES/<project_id>/
+  runtime/
+  wiki/BBC_KNOWLEDGE/
+  reports/
+```
+
+Set `BBC_AOS_WORKSPACES` to override the workspace base directory.
 
 ```bash
 bbc wiki status
@@ -246,7 +257,7 @@ Reflection outputs include:
 * future risks
 * deterministic hash
 
-Recurring failures are stored in `.bbc/failure_memory.jsonl`. Repeated failures increment `occurrence_count`, making recurring issues such as missing imports, invalid symbols, blast-radius violations, verification rejections, patch conflicts, approval timeouts, and checkpoint corruption visible over time.
+Recurring failures are stored in the ghost runtime failure memory. Repeated failures increment `occurrence_count`, making recurring issues such as missing imports, invalid symbols, blast-radius violations, verification rejections, patch conflicts, approval timeouts, and checkpoint corruption visible over time.
 
 Shadow mode is available for safe evaluation:
 
@@ -260,7 +271,7 @@ Shadow mode runs Planner, Context, Coder, Tester, and Verification, but performs
 
 ## 22. Architectural Invariants
 
-BBC-AOS supports architectural invariant checks through `.bbc/invariants.yaml`.
+BBC-AOS supports architectural invariant checks through the ghost runtime `invariants.yaml`.
 
 Supported controls:
 * `forbidden_paths`
@@ -331,10 +342,11 @@ Rollout levels:
 * `L2` / `ASSIST`: proposals with approval gates.
 * `L3` / `AUTONOMOUS`: approved operational loops with security and human gates intact.
 
-Runtime files:
-* `.bbc/loop/mode.json`
-* `.bbc/loop/STATE.json`
-* `.bbc/loop/budget.json`
-* `.bbc/loop/run_log.jsonl`
-* `.bbc/loop/KILL_SWITCH`
-* `BBC_KNOWLEDGE/Loop/STATE.md`
+Ghost workspace files:
+* `runtime/loop/mode.json`
+* `runtime/loop/STATE.json`
+* `runtime/loop/budget.json`
+* `runtime/loop/run_log.jsonl`
+* `runtime/loop/KILL_SWITCH`
+* `wiki/BBC_KNOWLEDGE/Loop/STATE.md`
+* `reports/loop_readiness_report.json`

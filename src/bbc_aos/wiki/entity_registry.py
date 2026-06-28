@@ -7,6 +7,8 @@ import hashlib
 import re
 from pathlib import Path
 
+from bbc_aos.runtime_paths import runtime_file
+
 
 EXTENSION_PATTERN = re.compile(r"\.(?:py|pyi|js|jsx|ts|tsx|md|json|yaml|yml|toml|txt|html|css|scss|pdf)$", re.IGNORECASE)
 MAX_ENTITY_ID_LENGTH = 96
@@ -39,7 +41,7 @@ class EntityRegistry:
     def __init__(self, project_root: Path, runtime_root: Path | None = None) -> None:
         self.project_root = project_root
         self.runtime_root = runtime_root or Path.cwd()
-        self.registry_path = self.runtime_root / ".bbc" / "wiki" / "entity_registry.json"
+        self.registry_path = runtime_file(self.runtime_root, "wiki", "entity_registry.json")
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
         self.entities_dir = self.project_root / "Entities"
         self.entities_dir.mkdir(parents=True, exist_ok=True)

@@ -12,9 +12,24 @@ from bbc_aos.operations.loop_pattern_registry import LoopPatternRegistry
 from bbc_aos.operations.loop_readiness import LoopReadinessAuditor
 from bbc_aos.operations.loop_run_log import LoopRunRecord, LoopRunLog
 from bbc_aos.operations.loop_state import LoopStateStore, OperationalLoopState
+from bbc_aos.runtime_paths import loop_dir, reports_dir, wiki_vault_dir
 
 
 class TestOperationalLoopLayerProduction(unittest.TestCase):
+    def setUp(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        self._old_workspace_env = os.environ.get("BBC_AOS_WORKSPACES")
+        self._ghost_root = Path(tempfile.mkdtemp()) / "BBC_WORKSPACES"
+        os.environ["BBC_AOS_WORKSPACES"] = str(self._ghost_root)
+
+    def tearDown(self) -> None:
+        if self._old_workspace_env is None:
+            os.environ.pop("BBC_AOS_WORKSPACES", None)
+        else:
+            os.environ["BBC_AOS_WORKSPACES"] = self._old_workspace_env
+
     def test_loop_modes_persist_correctly(self) -> None:
         with self.subTest("mode persistence"):
             root = self._tmp()
@@ -89,8 +104,9 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         manager.init()
         result = manager.kill()
         self.assertEqual(result["status"], "STOPPED")
-        self.assertTrue((root / ".bbc" / "loop" / "kill_switch.json").exists())
-        self.assertTrue((root / ".bbc" / "loop" / "KILL_SWITCH").exists())
+        self.assertTrue((loop_dir(root) / "kill_switch.json").exists())
+        self.assertTrue((loop_dir(root) / "KILL_SWITCH").exists())
+        self.assertFalse((root / ".bbc").exists())
         with self.assertRaises(RuntimeError):
             manager.start("daily_triage", "must not run")
 
@@ -111,9 +127,10 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         root = self._tmp()
         manager = LoopManager(root)
         manager.init()
-        state_path = root / "BBC_KNOWLEDGE" / "Loop" / "STATE.md"
+        state_path = wiki_vault_dir(root) / "Loop" / "STATE.md"
         self.assertTrue(state_path.exists())
         self.assertIn("BBC-AOS Loop State", state_path.read_text(encoding="utf-8"))
+        self.assertFalse((root / "BBC_KNOWLEDGE").exists())
 
     def test_pilot_readiness_score_is_at_least_l2(self) -> None:
         root = self._tmp()
@@ -124,6 +141,8 @@ class TestOperationalLoopLayerProduction(unittest.TestCase):
         result = manager.audit()
         self.assertGreaterEqual(result["readiness_score"], 80)
         self.assertIn(result["level"], {"L2", "L3"})
+        self.assertTrue((reports_dir(root) / "loop_readiness_report.json").exists())
+        self.assertFalse((root / "loop_readiness_report.json").exists())
 
     def _tmp(self):
         import tempfile

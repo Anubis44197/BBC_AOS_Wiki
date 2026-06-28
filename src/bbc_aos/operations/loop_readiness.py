@@ -7,6 +7,8 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
+from bbc_aos.runtime_paths import reports_dir
+
 
 READINESS_CRITERIA: tuple[tuple[str, str, int], ...] = (
     ("goal_clarity", "README.md", 8),
@@ -29,7 +31,7 @@ class LoopReadinessAuditor:
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.report_path = self.project_root / "loop_readiness_report.json"
+        self.report_path = reports_dir(self.project_root) / "loop_readiness_report.json"
 
     def audit(self) -> dict[str, Any]:
         covered: list[str] = []
@@ -52,6 +54,7 @@ class LoopReadinessAuditor:
                 for name, path, weight in READINESS_CRITERIA
             ],
         }
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
         self.report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
         return report
 

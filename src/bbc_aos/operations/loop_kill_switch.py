@@ -6,14 +6,17 @@ import json
 from pathlib import Path
 from typing import Any
 
+from bbc_aos.runtime_paths import loop_dir
+
 
 class LoopKillSwitch:
     """File-backed hard stop signal."""
 
     def __init__(self, project_root: str | Path = ".") -> None:
         self.project_root = Path(project_root)
-        self.path = self.project_root / ".bbc" / "loop" / "kill_switch.json"
-        self.legacy_path = self.project_root / ".bbc" / "loop" / "KILL_SWITCH"
+        loop_root = loop_dir(self.project_root)
+        self.path = loop_root / "kill_switch.json"
+        self.legacy_path = loop_root / "KILL_SWITCH"
 
     def activate(self, reason: str = "manual") -> Path:
         self.path.parent.mkdir(parents=True, exist_ok=True)
